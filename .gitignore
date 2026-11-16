@@ -3,3 +3,8 @@ out/
 preview/
 render/
 .venv-sync/
+videos/**/audio/
+preview/
+render/
+videos/**/public/*.mp3
+videos/**/analysis/
