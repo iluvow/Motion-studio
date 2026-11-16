@@ -19,7 +19,7 @@ SRC, OUT = sys.argv[1], sys.argv[2]
 W, H = 978, 1608
 
 ARMS = {'down': '7', 'orig': '2', 'mid': '10', 'p17': '17', 'up': '8'}
-HEADS = {'neutral': '7', 'nod': '11', 'tilt': '12', 'half': '13', 'blink': '9'}
+HEADS = {'neutral': '7', 'half': '13', 'blink': '9'}   # 끄덕임/갸웃은 이미지 대신 움직임으로 만든다
 TAIL_UP, TAIL_SWISH, TAIL_BASE = '14', '16', '2'
 
 # 꼬리 다각형 (원본 이미지 좌표). 바지 가장자리 바로 왼쪽까지.
@@ -60,8 +60,9 @@ def poly_mask(points, feather=1.5):
 
 def head_mask():
     m = np.zeros((H, W), np.float32)
-    m[:HEAD_ROWS, :HEAD_COLS] = 1
-    return m
+    m[:642, :HEAD_COLS] = 1
+    m[:662, :330] = 1                     # 왼쪽 아래 수염
+    return cv2.GaussianBlur(m, (0, 0), 0.8)
 
 
 def align_to(base_gray, num):
@@ -79,35 +80,68 @@ def align_to(base_gray, num):
     return rgb, al
 
 
+RIM = (255, 238, 196)
+GLOW = (255, 150, 70)
+
+
+def ring_of(alpha, others, r=5):
+    """층의 바깥 윤곽선 띠. 다른 층과 맞닿는 안쪽 경계에는 만들지 않는다."""
+    k = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2 * r + 1, 2 * r + 1))
+    dil = cv2.dilate((alpha > 0.3).astype(np.uint8), k).astype(np.float32)
+    ring = np.clip(dil - alpha, 0, 1) * (1 - np.clip(others * 1.5, 0, 1))
+    return cv2.GaussianBlur(ring, (0, 0), 1.1)
+
+
+def save_with_rim(rgb, alpha, others, path):
+    ring = ring_of(alpha, others)
+    rimimg = np.zeros((H, W, 4), np.uint8)
+    rimimg[..., 0], rimimg[..., 1], rimimg[..., 2] = RIM
+    rimimg[..., 3] = (ring * 255).astype(np.uint8)
+    base = Image.fromarray(rimimg)
+    base.alpha_composite(rgba(rgb, alpha))
+    base.save(path)
+
+
 def main():
     PM, HM = poly_mask(TAIL_POLY), head_mask()
-    # 몸통 층에서는 꼬리 다각형을 바깥으로 4px 넓혀 가장자리 찌꺼기를 지운다 (바지 쪽 x>246은 건드리지 않음)
     wide = cv2.dilate((PM > 0.1).astype(np.uint8), np.ones((9, 9), np.uint8)).astype(np.float32)
     wide[:, 247:] = 0
     PMW = cv2.GaussianBlur(np.maximum(wide, PM), (0, 0), 1.0)
-    # 몸통 층: 머리 영역과 꼬리를 뺀 몸
+
+    arms, heads = {}, {}
     for name, num in ARMS.items():
-        rgb, al = load(num)
-        rgba(rgb, al * (1 - PMW) * (1 - HM)).save(f'{OUT}/arm_{name}.png')
+        rgb, al = load(num); arms[name] = (rgb, al * (1 - PMW) * (1 - HM))
     for name, num in HEADS.items():
-        rgb, al = load(num)
-        rgba(rgb, al * HM).save(f'{OUT}/head_{name}.png')
-    # 꼬리 층
+        rgb, al = load(num); heads[name] = (rgb, al * HM)
     base_rgb, base_al = load(TAIL_BASE)
-    rgba(base_rgb, base_al * PM).save(f'{OUT}/tail_base.png')
-    body_alpha = base_al * (1 - PMW) * (1 - HM)          # 몸이 차지하는 부분(꼬리 아래에 깔릴 곳)
-    kernel = np.ones((5, 5), np.uint8)
-    body_dil = cv2.dilate((body_alpha > 0.5).astype(np.uint8), kernel).astype(np.float32)
+    tails = {'base': (base_rgb, base_al * PM)}
+    body_alpha = base_al * (1 - PMW) * (1 - HM)
+    body_dil = cv2.dilate((body_alpha > 0.5).astype(np.uint8), np.ones((5, 5), np.uint8)).astype(np.float32)
     base_gray = cv2.cvtColor(base_rgb.astype(np.uint8), cv2.COLOR_RGB2GRAY).astype(np.float32)
     for name, num, box in (('up', TAIL_UP, (0, 760, 330, 1320)), ('swish', TAIL_SWISH, (540, 930, 930, 1300))):
         rgb, al = align_to(base_gray, num)
         x0, y0, x1, y1 = box
-        sel = np.zeros((H, W), np.float32)
-        sel[y0:y1, x0:x1] = 1
-        # 몸과 겹치지 않는 부분만 꼬리로 인정 (뿌리 근처는 몸 아래에 깔리므로 그대로 둔다)
-        keep = al * sel * (1 - body_dil * (1 - poly_mask([(200, 1120), (300, 1120), (300, 1300), (200, 1300)], 1)) ) \
+        sel = np.zeros((H, W), np.float32); sel[y0:y1, x0:x1] = 1
+        keep = al * sel * (1 - body_dil * (1 - poly_mask([(200, 1120), (300, 1120), (300, 1300), (200, 1300)], 1))) \
             if name == 'up' else al * sel * (1 - body_dil)
-        rgba(rgb, keep).save(f'{OUT}/tail_{name}.png')
+        tails[name] = (rgb, keep)
+
+    a_down, h_neu, t_base = arms['down'][1], heads['neutral'][1], tails['base'][1]
+    for n, (rgb, al) in arms.items():
+        save_with_rim(rgb, al, np.maximum(h_neu, t_base), f'{OUT}/arm_{n}.png')
+    for n, (rgb, al) in heads.items():
+        save_with_rim(rgb, al, np.maximum(a_down, t_base), f'{OUT}/head_{n}.png')
+    for n, (rgb, al) in tails.items():
+        save_with_rim(rgb, al, np.maximum(a_down, h_neu), f'{OUT}/tail_{n}.png')
+
+    # 은은한 바깥 빛 (움직여도 티 나지 않게 넓고 부드럽게)
+    sil = np.maximum.reduce([a_down, h_neu, t_base])
+    k = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (31, 31))
+    g = cv2.GaussianBlur(cv2.dilate((sil > 0.3).astype(np.uint8), k).astype(np.float32), (0, 0), 24)
+    glow = np.zeros((H, W, 4), np.uint8)
+    glow[..., 0], glow[..., 1], glow[..., 2] = GLOW
+    glow[..., 3] = (np.clip(g, 0, 1) * 255 * 0.5).astype(np.uint8)
+    Image.fromarray(glow).save(f'{OUT}/glow.png')
     print('done', OUT)
 
 

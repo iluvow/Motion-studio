@@ -1,6 +1,6 @@
 import React from 'react';
 import {AbsoluteFill, Audio, Img, interpolate, staticFile, useCurrentFrame} from 'remotion';
-import {ARM_POSES, AUDIO_FILE, C, CAT, FPS, H, LABEL, LYRICS, LYRIC_HOLD, PERIOD, TAIL_PIVOT, W} from './constants';
+import {ARM_POSES, AUDIO_FILE, C, CAT, FPS, H, KICKS, LABEL, LYRICS, LYRIC_HOLD, PERIOD, TAIL_PIVOT, W} from './constants';
 import {active, bump, clamp, cumulative, easeOut, hit, prevIdx, strum} from './anim';
 
 const S = CAT.scale;
@@ -26,26 +26,24 @@ const Cat: React.FC<{t: number}> = ({t}) => {
   /* ── 연주 팔 ── */
   const armName = armPose(strum(t));
 
-  /* ── 머리: 한 자세를 유지하다가 아주 짧게 바뀐다 (우선순위: 깜빡임 > 끄덕임 > 갸웃 > 졸린 눈) ── */
+  /* ── 머리: 눈 상태만 이미지로 섞고(같은 자세라 겹쳐도 안 어긋남), 끄덕임·갸웃은 머리를 직접 움직인다 ── */
   const act = active(t);
-  const nodRaw = hit(t, 0.13) * act;                                   // 킥 직후 잠깐 1
-  const tiltRaw = 0.5 + 0.5 * Math.sin((2 * Math.PI * t) / (PERIOD * 8) + 1);
+  const nodAmt = hit(t, 0.14) * act;                                     // 킥에서 1 → 0
+  const lift = strum(t);                                                  // 팔이 올라갈 때 머리도 살짝 든다
+  const tilt = 4.5 * Math.sin((2 * Math.PI * t) / (PERIOD * 8) + 1);       // 갸웃 (도)
+  const headY = (-4 * lift + 15 * nodAmt) * S;
+  const headRot = tilt + 1.6 * nodAmt;
   const halfRaw = 0.5 + 0.5 * Math.sin((2 * Math.PI * t) / 5.7);
   const bl = (t - 1.1 + 340) % 3.4;
-  const blinkRaw = bl < 0.14 ? 1 : 0;
-  const wBlink = ss(blinkRaw, 0.2, 0.9);
-  const wNod = (1 - wBlink) * ss(nodRaw, 0.38, 0.5);
-  const wTilt = (1 - wBlink) * (1 - wNod) * ss(tiltRaw, 0.62, 0.7);
-  const wHalf = (1 - wBlink) * (1 - wNod) * (1 - wTilt) * ss(halfRaw, 0.62, 0.7);
-  const wNeutral = Math.max(0, 1 - wBlink - wNod - wTilt - wHalf);
-  const hOp = cumulative([wNeutral, wNod, wTilt, wHalf, wBlink]);
-  const heads = ['neutral', 'nod', 'tilt', 'half', 'blink'];
+  const wBlink = bl < 0.16 ? Math.sin((bl / 0.16) * Math.PI) : 0;
+  const wHalf = (1 - wBlink) * ss(halfRaw, 0.45, 0.75) * 0.9;
+  const hOp = cumulative([Math.max(0, 1 - wBlink - wHalf), wHalf, wBlink]);
+  const heads = ['neutral', 'half', 'blink'];
 
-  /* ── 꼬리: 기본 ↔ 위로 ↔ 오른쪽, 몸보다 늦게 흔들림 ── */
-  const u = (t / (PERIOD * 8)) % 1;
-  const up = ss(bump(u, 0.45, 0.14), 0.55, 0.75), sw = ss(bump(u, 0.9, 0.12), 0.55, 0.75);
-  const tw = [Math.max(0, 1 - up - sw), up, sw];
-  const tOp = cumulative(tw);
+  /* ── 꼬리: 4박(한 마디)마다 첫 박에서 모양이 바뀌고, 어느 모양이든 몸보다 늦게 흔들림 ── */
+  const bar = Math.floor((t - KICKS[0]) / (PERIOD * 4));
+  const TAIL_PATTERN = ['base', 'base', 'up', 'base', 'base', 'swish', 'base', 'up'];
+  const tailState = TAIL_PATTERN[((bar % TAIL_PATTERN.length) + TAIL_PATTERN.length) % TAIL_PATTERN.length];
   const tailRot = 5 * Math.sin((2 * Math.PI * t) / (PERIOD * 4) - 0.9);
 
   /* ── 몸 전체: 숨쉬기, 킥에 살짝 눌림, 천천히 기울기 ── */
@@ -61,14 +59,15 @@ const Cat: React.FC<{t: number}> = ({t}) => {
         transform: `translateY(${k * 9}px) rotate(${sway}deg) scale(${1 + k * 0.004}, ${breathe - k * 0.012})`,
       }}
     >
+      <L file="glow" opacity={0.85 + 0.1 * Math.sin(t * 5.1)} />
       {/* 꼬리 (몸 뒤) */}
       <div style={{position: 'absolute', inset: 0, transformOrigin: `${TAIL_PIVOT.x * S}px ${TAIL_PIVOT.y * S}px`, transform: `rotate(${tailRot}deg)`}}>
-        <L file="tail_base" opacity={tOp[0]} />
-        <L file="tail_up" opacity={tOp[1]} />
-        <L file="tail_swish" opacity={tOp[2]} />
+        <L file={`tail_${tailState}`} opacity={1} />
       </div>
       <L file={`arm_${armName}`} opacity={1} />
-      {heads.map((nm, i) => <L key={nm} file={`head_${nm}`} opacity={hOp[i]} />)}
+      <div style={{position: 'absolute', inset: 0, transformOrigin: `${490 * S}px ${640 * S}px`, transform: `translateY(${headY}px) rotate(${headRot}deg)`}}>
+        {heads.map((nm, i) => <L key={nm} file={`head_${nm}`} opacity={hOp[i]} />)}
+      </div>
     </div>
   );
 };
@@ -134,7 +133,6 @@ export const Video: React.FC = () => {
         <div
           style={{
             position: 'absolute', left: CAT.cx - (CAT.w * S) / 2, top: CAT.top, width: CAT.w * S, height: CAT.h * S,
-            filter: 'drop-shadow(0 0 3px rgba(255,238,196,0.95)) drop-shadow(0 0 28px rgba(255,150,70,0.4))',
           }}
         >
           <Cat t={t} />
