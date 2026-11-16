@@ -9,3 +9,4 @@ render/
 videos/**/public/*.mp3
 videos/**/analysis/
 .venv-blender/
+videos/**/public/cat/
