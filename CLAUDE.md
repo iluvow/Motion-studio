@@ -55,3 +55,12 @@
 - 영상 성격에 맞게 둘 중 선택한다: 데이터·구조적 애니메이션은 Remotion,
   타이포·HTML 그래픽 중심은 HyperFrames. 선택 이유는 방향 제안 때 함께 알려준다.
 - 환경: Node 22, ffmpeg/ffprobe 사용 가능 (검증용 ffprobe 포함).
+
+## 폴더 구조 (종류별 분리)
+- `videos/lyric/<이름>/` — 가사(리릭) 영상. mp3, 가사, 단어별 시간표(`timing.json`)를 함께 둔다.
+- `videos/general/<이름>/` — 일반 모션그래픽 (소개, 설명, 제품, 타이포 등).
+- `shared/` — 두 종류가 함께 쓰는 팔레트, 이징, 전환, 타격 모션 같은 공용 코드.
+- `tools/lyric-sync/` — 가사 싱크 전용 스크립트 (Demucs 보컬 분리 + WhisperX 강제 정렬).
+  가상환경은 `.venv-sync/` (git 제외).
+- 가사 싱크는 가사 영상에만 쓴다. 일반 모션그래픽은 `videos/general/`에서 같은 기준으로 만든다.
+- 미리보기·최종 출력물(`preview/`, `render/`, `out/`)은 git에 올리지 않는다.
