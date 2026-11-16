@@ -8,3 +8,4 @@ preview/
 render/
 videos/**/public/*.mp3
 videos/**/analysis/
+.venv-blender/
