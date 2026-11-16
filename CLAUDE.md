@@ -45,3 +45,13 @@
 - 영상마다 별도 폴더로 분리하고, 팔레트·타이밍·텍스트 같은 값은 한곳에
   상수로 모아 나중에 수정하기 쉽게 한다.
 - 미리보기와 최종 렌더 출력물은 코드와 구분된 폴더에 둔다.
+
+## 제작 도구
+- **Remotion**: React 기반. 주 제작 도구. 영상마다 `videos/<이름>/` 폴더에 구성하고
+  `--codec h264`, 1440×1440, `fps=60`으로 MP4 렌더링한다. (`remotion:*` 스킬 사용)
+- **HyperFrames**: HTML/GSAP 기반 합성. 로컬 스킬(`npx skills add heygen-com/hyperframes`)로
+  표준 HTML 컴포지션을 만들고 렌더링한다. HeyGen MCP의 `compose`/`render_video`는
+  CLI에서 비활성화되어 있으므로, 클라우드 프로젝트가 필요할 때만 쓴다.
+- 영상 성격에 맞게 둘 중 선택한다: 데이터·구조적 애니메이션은 Remotion,
+  타이포·HTML 그래픽 중심은 HyperFrames. 선택 이유는 방향 제안 때 함께 알려준다.
+- 환경: Node 22, ffmpeg/ffprobe 사용 가능 (검증용 ffprobe 포함).
