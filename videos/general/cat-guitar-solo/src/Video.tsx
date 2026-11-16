@@ -1,44 +1,87 @@
 import React from 'react';
 import {AbsoluteFill, Audio, Img, interpolate, staticFile, useCurrentFrame} from 'remotion';
-import {AUDIO_FILE, C, CAT, FPS, KICKS, LABEL, LYRICS, PERIOD, SIZE} from './constants';
+import {ARM_POSES, AUDIO_FILE, C, CAT, FPS, H, LABEL, LYRICS, LYRIC_HOLD, PERIOD, TAIL_PIVOT, W} from './constants';
+import {active, bump, clamp, cumulative, easeOut, hit, prevIdx, strum} from './anim';
 
-const clamp = (x: number, a = 0, b = 1) => Math.min(b, Math.max(a, x));
-const easeOut = (x: number) => 1 - Math.pow(1 - clamp(x), 3);
+const S = CAT.scale;
+const layerStyle = (opacity: number): React.CSSProperties => ({
+  position: 'absolute', left: 0, top: 0, width: CAT.w * S, height: CAT.h * S, opacity,
+});
+const L: React.FC<{file: string; opacity: number}> = ({file, opacity}) =>
+  opacity > 0.003 ? <Img src={staticFile(`cat/${file}.png`)} style={layerStyle(opacity)} /> : null;
 
-function prevIdx(times: number[], t: number) {
-  let lo = 0, hi = times.length - 1, r = -1;
-  while (lo <= hi) {
-    const m = (lo + hi) >> 1;
-    if (times[m] <= t) { r = m; lo = m + 1; } else hi = m - 1;
-  }
-  return r;
+/** 연주 팔: 손 높이에 가장 가까운 자세 한 장 (섞으면 손이 두 개로 보여서 한 장씩 바꾼다) */
+function armPose(p: number) {
+  const y = ARM_POSES[0].y - (ARM_POSES[0].y - ARM_POSES[ARM_POSES.length - 1].y) * clamp(p);
+  let best = ARM_POSES[0];
+  for (const a of ARM_POSES) if (Math.abs(a.y - y) < Math.abs(best.y - y)) best = a;
+  return best.name;
 }
+const ss = (x: number, a: number, b: number) => {
+  const t = clamp((x - a) / (b - a));
+  return t * t * (3 - 2 * t);
+};
 
-/** 박자에 맞춰 연주 자세 결정: 킥에서 내려치고(down), 킥과 킥 사이(엇박)에 올린다(up). 쉬는 구간은 내린 자세 */
-function pose(t: number): 'down' | 'up' | 'blink' {
-  const i = prevIdx(KICKS, t);
-  let p: 'down' | 'up' = 'down';
-  if (i >= 0 && i + 1 < KICKS.length) {
-    const a = KICKS[i], b = KICKS[i + 1];
-    if (b - a < 0.6 && t >= (a + b) / 2) p = 'up';
-  }
-  // 깜빡임: 3.4초마다 0.14초, 내린 자세일 때만
+const Cat: React.FC<{t: number}> = ({t}) => {
+  /* ── 연주 팔 ── */
+  const armName = armPose(strum(t));
+
+  /* ── 머리: 한 자세를 유지하다가 아주 짧게 바뀐다 (우선순위: 깜빡임 > 끄덕임 > 갸웃 > 졸린 눈) ── */
+  const act = active(t);
+  const nodRaw = hit(t, 0.13) * act;                                   // 킥 직후 잠깐 1
+  const tiltRaw = 0.5 + 0.5 * Math.sin((2 * Math.PI * t) / (PERIOD * 8) + 1);
+  const halfRaw = 0.5 + 0.5 * Math.sin((2 * Math.PI * t) / 5.7);
   const bl = (t - 1.1 + 340) % 3.4;
-  if (p === 'down' && bl < 0.14) return 'blink';
-  return p;
-}
+  const blinkRaw = bl < 0.14 ? 1 : 0;
+  const wBlink = ss(blinkRaw, 0.2, 0.9);
+  const wNod = (1 - wBlink) * ss(nodRaw, 0.38, 0.5);
+  const wTilt = (1 - wBlink) * (1 - wNod) * ss(tiltRaw, 0.62, 0.7);
+  const wHalf = (1 - wBlink) * (1 - wNod) * (1 - wTilt) * ss(halfRaw, 0.62, 0.7);
+  const wNeutral = Math.max(0, 1 - wBlink - wNod - wTilt - wHalf);
+  const hOp = cumulative([wNeutral, wNod, wTilt, wHalf, wBlink]);
+  const heads = ['neutral', 'nod', 'tilt', 'half', 'blink'];
 
-const Bg: React.FC<{t: number}> = ({t}) => {
-  const flick = 0.92 + 0.05 * Math.sin(t * 5.1) + 0.03 * Math.sin(t * 11.3);
-  const drift = Math.sin(t * 0.5) * 8;
+  /* ── 꼬리: 기본 ↔ 위로 ↔ 오른쪽, 몸보다 늦게 흔들림 ── */
+  const u = (t / (PERIOD * 8)) % 1;
+  const up = ss(bump(u, 0.45, 0.14), 0.55, 0.75), sw = ss(bump(u, 0.9, 0.12), 0.55, 0.75);
+  const tw = [Math.max(0, 1 - up - sw), up, sw];
+  const tOp = cumulative(tw);
+  const tailRot = 5 * Math.sin((2 * Math.PI * t) / (PERIOD * 4) - 0.9);
+
+  /* ── 몸 전체: 숨쉬기, 킥에 살짝 눌림, 천천히 기울기 ── */
+  const breathe = 1 + 0.004 * Math.sin((2 * Math.PI * t) / 3.1);
+  const k = hit(t, 0.12) * act;
+  const sway = 0.5 * Math.sin((2 * Math.PI * t) / (PERIOD * 4));
+
   return (
-    <AbsoluteFill style={{transform: `translateX(${drift}px) scale(1.04)`}}>
-      <AbsoluteFill style={{background: `linear-gradient(180deg, ${C.skyTop} 0%, ${C.skyMid} 45%, #3a2a3c 70%, ${C.ground} 100%)`}} />
-      <AbsoluteFill style={{background: `radial-gradient(ellipse 60% 48% at 8% 6%, ${C.glow} 0%, ${C.glowSoft}aa 22%, transparent 70%)`, opacity: flick}} />
-      <AbsoluteFill style={{background: `radial-gradient(ellipse 80% 22% at 30% 100%, ${C.glowSoft}77 0%, transparent 75%)`}} />
-      {/* 가로등 불빛 (흐린 원) */}
-      {[[170, 1010, 70], [330, 930, 36], [90, 880, 26]].map(([x, y, r], i) => (
-        <div key={i} style={{position: 'absolute', left: x - r, top: y - r, width: r * 2, height: r * 2, borderRadius: '50%', background: '#ffb15a', filter: 'blur(14px)', opacity: 0.55 * flick}} />
+    <div
+      style={{
+        position: 'absolute', left: 0, top: 0, width: CAT.w * S, height: CAT.h * S,
+        transformOrigin: `${489 * S}px ${1250 * S}px`,
+        transform: `translateY(${k * 9}px) rotate(${sway}deg) scale(${1 + k * 0.004}, ${breathe - k * 0.012})`,
+      }}
+    >
+      {/* 꼬리 (몸 뒤) */}
+      <div style={{position: 'absolute', inset: 0, transformOrigin: `${TAIL_PIVOT.x * S}px ${TAIL_PIVOT.y * S}px`, transform: `rotate(${tailRot}deg)`}}>
+        <L file="tail_base" opacity={tOp[0]} />
+        <L file="tail_up" opacity={tOp[1]} />
+        <L file="tail_swish" opacity={tOp[2]} />
+      </div>
+      <L file={`arm_${armName}`} opacity={1} />
+      {heads.map((nm, i) => <L key={nm} file={`head_${nm}`} opacity={hOp[i]} />)}
+    </div>
+  );
+};
+
+const Bg: React.FC<{t: number; x: number; zoom: number}> = ({t, x, zoom}) => {
+  const flick = 0.92 + 0.05 * Math.sin(t * 5.1) + 0.03 * Math.sin(t * 11.3);
+  return (
+    <AbsoluteFill style={{transform: `translateX(${x}px) scale(${1.05 * zoom})`, transformOrigin: '70% 50%'}}>
+      <AbsoluteFill style={{background: `linear-gradient(180deg, ${C.bgTop} 0%, ${C.bgMid} 55%, #3a1d25 100%)`}} />
+      <AbsoluteFill style={{background: `radial-gradient(ellipse 55% 60% at 70% 30%, ${C.amber}cc 0%, ${C.coral}55 35%, transparent 75%)`, opacity: 0.8 * flick}} />
+      <AbsoluteFill style={{background: `radial-gradient(ellipse 40% 30% at 12% 88%, ${C.teal}55 0%, transparent 80%)`}} />
+      {[[200, 1180, 90], [420, 1060, 44], [110, 980, 30], [1500, 260, 50]].map(([cx, cy, r], i) => (
+        <div key={i} style={{position: 'absolute', left: cx - r, top: cy - r, width: r * 2, height: r * 2, borderRadius: '50%', background: i === 3 ? C.coral : C.amber, filter: 'blur(16px)', opacity: 0.45 * flick}} />
       ))}
     </AbsoluteFill>
   );
@@ -47,21 +90,22 @@ const Bg: React.FC<{t: number}> = ({t}) => {
 const Lyrics: React.FC<{t: number}> = ({t}) => {
   const idx = prevIdx(LYRICS.map((l) => l.t), t);
   const cur = idx >= 0 ? LYRICS[idx] : null;
-  const k = cur ? easeOut((t - cur.t) / 0.28) : 0;
+  const age = cur ? t - cur.t : 99;
+  const show = cur && age < LYRIC_HOLD;
+  const k = show ? easeOut(age / 0.22) : 0;
+  const out = show ? clamp((LYRIC_HOLD - age) / 0.12) : 0;
   return (
-    <div style={{position: 'absolute', left: 96, top: 130, fontFamily: 'Inter, sans-serif', color: C.text}}>
-      <div style={{display: 'flex', gap: 10, marginBottom: 22, opacity: 0.9}}>
-        <div style={{width: 14, height: 14, borderRadius: 7, background: '#fff'}} />
-        <div style={{width: 14, height: 14, borderRadius: 7, background: '#fff'}} />
+    <div style={{position: 'absolute', left: 120, top: 170, fontFamily: 'Inter, sans-serif', color: C.text}}>
+      <div style={{display: 'flex', gap: 12, marginBottom: 26, opacity: 0.9}}>
+        <div style={{width: 18, height: 18, borderRadius: 9, background: '#fff'}} />
+        <div style={{width: 18, height: 18, borderRadius: 9, background: '#fff'}} />
       </div>
-      {cur && (
-        <div style={{opacity: k, transform: `translateY(${(1 - k) * 28}px)`}}>
-          {cur.lines.map((s, i) => (
-            <div key={i} style={{fontSize: 84, fontWeight: 800, lineHeight: 1.08, letterSpacing: -2, textShadow: '0 4px 18px rgba(0,0,0,0.45)'}}>{s}</div>
-          ))}
-        </div>
-      )}
-      <div style={{marginTop: 26, fontSize: 38, fontWeight: 600, opacity: 0.85}}>{LABEL} ♪</div>
+      <div style={{minHeight: 240, opacity: k * out, transform: `translateY(${(1 - k) * 30}px)`}}>
+        {show && cur!.lines.map((s, i) => (
+          <div key={i} style={{fontSize: 104, fontWeight: 800, lineHeight: 1.08, letterSpacing: -2, textShadow: '0 4px 20px rgba(0,0,0,0.45)'}}>{s}</div>
+        ))}
+      </div>
+      <div style={{marginTop: 24, fontSize: 42, fontWeight: 600, opacity: 0.85}}>{LABEL} ♪</div>
     </div>
   );
 };
@@ -69,32 +113,32 @@ const Lyrics: React.FC<{t: number}> = ({t}) => {
 export const Video: React.FC = () => {
   const frame = useCurrentFrame();
   const t = frame / FPS;
-  const i = prevIdx(KICKS, t);
-  const since = i >= 0 ? t - KICKS[i] : 9;
-  const active = i >= 0 && i + 1 < KICKS.length && KICKS[i + 1] - KICKS[i] < 0.6 ? 1 : 0.4;
-  const hit = Math.exp(-since / 0.12) * active;            // 킥 순간 1 → 0
-  const sway = Math.sin((2 * Math.PI * t) / (PERIOD * 4)) * 0.7; // 2마디에 한 번 좌우로 기울기
-  const bob = Math.sin((2 * Math.PI * t) / (PERIOD * 2)) * 4;    // 느린 위아래
-  const p = pose(t);
-  const w = CAT.w * CAT.scale, h = CAT.h * CAT.scale;
-  const flick = 0.9 + 0.06 * Math.sin(t * 5.1) + 0.04 * Math.sin(t * 11.3);
-  const fade = interpolate(frame, [0, 10], [1, 0], {extrapolateRight: 'clamp'});
+
+  /* 카메라: 처음에 클로즈업에서 빠지며 자리 잡고(0.9초), 이후 8초 주기로 천천히 좌우 흔들림.
+     캐릭터는 배경보다 1.7배 더 움직여 깊이감을 준다. (레퍼런스 영상 측정값) */
+  const intro = 1 + 0.43 * (1 - easeOut(t / 0.9));
+  const bgIntro = 1 + 0.1 * (1 - easeOut(t / 0.9));
+  const ph = (2 * Math.PI * t) / 8;
+  const A = 0.01 * W;
+  const bgX = A * Math.sin(ph);
+  const catX = 1.7 * A * Math.sin(ph), catY = 0.006 * H * Math.cos(ph + 0.5);
+  const fade = interpolate(frame, [0, 30], [1, 0], {extrapolateRight: 'clamp'});
 
   return (
     <AbsoluteFill style={{background: '#000'}}>
       <Audio src={staticFile(AUDIO_FILE)} />
-      <Bg t={t} />
-      <AbsoluteFill style={{background: 'radial-gradient(ellipse at 50% 50%, rgba(0,0,0,0) 55%, rgba(8,4,12,0.45) 100%)', pointerEvents: 'none'}} />
+      <Bg t={t} x={bgX} zoom={bgIntro} />
+      <AbsoluteFill style={{background: 'radial-gradient(ellipse at 55% 50%, rgba(0,0,0,0) 55%, rgba(8,4,12,0.5) 100%)', pointerEvents: 'none'}} />
       <Lyrics t={t} />
-      <div
-        style={{
-          position: 'absolute', left: CAT.left, top: CAT.top, width: w, height: h,
-          transformOrigin: '50% 100%',
-          transform: `translateY(${bob + hit * 10}px) rotate(${sway}deg) scale(${1 + hit * 0.006}, ${1 - hit * 0.014})`,
-          filter: `drop-shadow(0 0 10px rgba(255,170,80,${0.55 * flick})) drop-shadow(0 0 34px rgba(255,120,40,${0.35 * flick}))`,
-        }}
-      >
-        <Img src={staticFile(`cat/${p}.png`)} style={{width: w, height: h}} />
+      <div style={{position: 'absolute', inset: 0, transformOrigin: `${CAT.cx}px 700px`, transform: `scale(${intro}) translate(${catX}px, ${catY}px)`}}>
+        <div
+          style={{
+            position: 'absolute', left: CAT.cx - (CAT.w * S) / 2, top: CAT.top, width: CAT.w * S, height: CAT.h * S,
+            filter: 'drop-shadow(0 0 3px rgba(255,238,196,0.95)) drop-shadow(0 0 28px rgba(255,150,70,0.4))',
+          }}
+        >
+          <Cat t={t} />
+        </div>
       </div>
       <AbsoluteFill style={{background: '#0a0610', opacity: fade, pointerEvents: 'none'}} />
     </AbsoluteFill>
