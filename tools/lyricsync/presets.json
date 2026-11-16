@@ -1,0 +1,22 @@
+{
+  "default": {
+    "desc": "일반 곡. 균형 잡힌 설정",
+    "model": "small", "separate": true, "vad": true, "refine": false
+  },
+  "ballad": {
+    "desc": "느린 곡/발라드. 긴 음 끌기가 많아 refine으로 끝점 보정",
+    "model": "small", "separate": true, "vad": true, "refine": true
+  },
+  "rap": {
+    "desc": "빠른 랩/가사 밀도 높음. 큰 모델, VAD 끔(짧은 쉼에서 단어 누락 방지)",
+    "model": "medium", "separate": true, "vad": false, "refine": false
+  },
+  "clean": {
+    "desc": "반주가 약한 어쿠스틱/아카펠라. 분리 생략으로 빠름",
+    "model": "small", "separate": false, "vad": true, "refine": false
+  },
+  "fast": {
+    "desc": "초안용. 가장 빠름, 정확도 낮음",
+    "model": "base", "separate": false, "vad": false, "refine": false
+  }
+}

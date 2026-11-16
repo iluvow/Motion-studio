@@ -1,0 +1,6 @@
+# 정렬/분석 도구 (CPU로도 동작, GPU면 더 빠름)
+stable-ts>=2.17
+demucs>=4.0.1
+librosa>=0.10
+soundfile
+numpy

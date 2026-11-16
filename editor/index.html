@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><title>Lyric Timing Editor</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+:root{--bg:#14161a;--pn:#1d2026;--tx:#e6e8ec;--mu:#8b93a1;--ac:#5aa9ff;--wd:#2f6fb5;--lo:#c2603a;--bt:#ffffff22}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:14px system-ui,sans-serif;display:flex;flex-direction:column;height:100vh}
+header{display:flex;gap:10px;align-items:center;padding:8px 12px;background:var(--pn);flex-wrap:wrap}
+select,button,input{background:#2a2e36;color:var(--tx);border:1px solid #3a3f49;border-radius:6px;padding:5px 9px;font:inherit}
+button{cursor:pointer}button:hover{background:#343944}button.pri{background:var(--wd);border-color:var(--wd)}
+label{color:var(--mu);display:flex;align-items:center;gap:4px}
+#stage{flex:1;display:flex;flex-direction:column;min-height:0}
+#wrap{position:relative;flex:1;overflow-x:auto;overflow-y:hidden}
+canvas{display:block}
+#now{padding:10px 16px;font-size:22px;min-height:52px;background:var(--pn);border-top:1px solid #2a2e36}
+#now .on{color:var(--ac)}#now .done{color:var(--mu)}
+#info{padding:6px 12px;color:var(--mu);font-size:12px;background:var(--pn)}
+#msg{margin-left:auto;color:#7fd18b}
+</style></head><body>
+<header>
+ <select id="song"></select>
+ <button id="play" class="pri">▶ 재생 (Space)</button>
+ <label>줌 <input id="zoom" type="range" min="20" max="400" value="100"></label>
+ <label><input id="snap" type="checkbox">비트 스냅</label>
+ <label>속도 <select id="rate"><option>0.5</option><option>0.75</option><option selected>1</option></select></label>
+ <button id="save" class="pri">저장 (Ctrl+S)</button><span id="msg"></span>
+</header>
+<div id="stage"><div id="wrap"><canvas id="cv"></canvas></div>
+<div id="now"></div>
+<div id="info">드래그: 단어 이동 · 가장자리 드래그: 길이 조절 · 더블클릭: 텍스트 수정 · ←/→: 선택 단어 ±0.01초(Shift ±0.05) · [ ]: 시작/끝 현재 위치로 · 주황=신뢰도 낮음(확인 필요)</div></div>
+<script>
+const $=id=>document.getElementById(id);
+let song,data,beats,buf,audio,sel=null,pps=100,drag=null,dirty=false;
+const cv=$('cv'),ctx=cv.getContext('2d'),H=300,WAVE_H=130,LANE_Y=150,LANE_H=44;
+const words=()=>data.lines.flatMap((l,li)=>l.words.map((w,wi)=>Object.assign(w,{li,wi})));
+const T2X=t=>t*pps, X2T=x=>x/pps;
+async function load(name){
+  song=name; const b='/songs/'+name+'/';
+  data=await (await fetch(b+'words.json')).json();
+  beats=await fetch(b+'beats.json').then(r=>r.ok?r.json():null).catch(()=>null);
+  audio=new Audio(b+data.audio); audio.playbackRate=+$('rate').value;
+  const ab=await (await fetch(b+data.audio)).arrayBuffer();
+  buf=await new AudioContext().decodeAudioData(ab);
+  peaks=null; resize(); loop();
+}
+let peaks=null;
+function calcPeaks(){const n=Math.ceil(buf.duration*pps),ch=buf.getChannelData(0),sp=ch.length/n;peaks=new Float32Array(n);
+  for(let i=0;i<n;i++){let m=0;for(let j=Math.floor(i*sp),e=Math.min(ch.length,Math.floor((i+1)*sp));j<e;j+=4)m=Math.max(m,Math.abs(ch[j]));peaks[i]=m}}
+function resize(){pps=+$('zoom').value;cv.width=Math.ceil(buf.duration*pps)+40;cv.height=H;calcPeaks();draw()}
+function draw(){
+  ctx.clearRect(0,0,cv.width,H);ctx.fillStyle='#1a1d22';ctx.fillRect(0,0,cv.width,H);
+  // 초 눈금
+  ctx.fillStyle='#555';ctx.font='10px sans-serif';
+  for(let s=0;s<buf.duration;s++){const x=T2X(s);ctx.fillRect(x,0,1,s%5?6:14);if(s%5==0)ctx.fillText(s+'s',x+3,24)}
+  if(beats){ctx.fillStyle='#fff2';for(const t of beats.beats)ctx.fillRect(T2X(t),30,1,WAVE_H+LANE_H+30)}
+  // 파형
+  ctx.fillStyle='#4a6a8f';const mid=30+WAVE_H/2;
+  for(let i=0;i<peaks.length;i++){const h=peaks[i]*WAVE_H*.9;ctx.fillRect(i,mid-h/2,1,Math.max(h,1))}
+  // 단어
+  for(const w of words()){
+    const x=T2X(w.start),wd=Math.max(T2X(w.end)-x,3),low=w.conf!=null&&w.conf>0&&w.conf<.5;
+    ctx.fillStyle=w===sel?'#5aa9ff':low?'#c2603a':'#2f6fb5';ctx.fillRect(x,LANE_Y+WAVE_H/2-20,wd,LANE_H);
+    ctx.strokeStyle='#0008';ctx.strokeRect(x+.5,LANE_Y+WAVE_H/2-20+.5,wd-1,LANE_H-1);
+    ctx.save();ctx.beginPath();ctx.rect(x,LANE_Y+WAVE_H/2-20,wd,LANE_H);ctx.clip();
+    ctx.fillStyle='#fff';ctx.font='13px sans-serif';ctx.fillText(w.text,x+4,LANE_Y+WAVE_H/2+2);ctx.restore();
+  }
+  // 재생 헤드
+  const px=T2X(audio.currentTime);ctx.fillStyle='#ff5a5a';ctx.fillRect(px,0,2,H);
+}
+function nowText(){
+  const t=audio.currentTime;const l=data.lines.find(l=>t>=l.start-.3&&t<=l.end+.3);
+  $('now').innerHTML=l?l.words.map(w=>`<span class="${t>=w.end?'done':t>=w.start?'on':''}">${w.text}</span>`).join(' '):'';
+}
+function loop(){draw();nowText();const wr=$('wrap');
+  if(!audio.paused){const px=T2X(audio.currentTime);if(px<wr.scrollLeft||px>wr.scrollLeft+wr.clientWidth*.8)wr.scrollLeft=px-60}
+  requestAnimationFrame(loop)}
+function hit(e){const r=cv.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top;
+  if(y<LANE_Y+WAVE_H/2-20||y>LANE_Y+WAVE_H/2+24)return null;
+  for(const w of words()){const a=T2X(w.start),b=T2X(w.end);
+    if(x>=a-3&&x<=b+3){return{w,mode:x<a+6?'l':x>b-6?'r':'m',x}}}return null}
+function snap(t){if(!$('snap').checked||!beats)return t;let b=beats.beats.reduce((p,c)=>Math.abs(c-t)<Math.abs(p-t)?c:p);return Math.abs(b-t)<.08?b:t}
+cv.onmousedown=e=>{const h=hit(e);
+  if(!h){audio.currentTime=X2T(e.clientX-cv.getBoundingClientRect().left);sel=null;return}
+  sel=h.w;drag={...h,s0:h.w.start,e0:h.w.end};};
+window.onmousemove=e=>{if(!drag)return;dirty=true;const dt=X2T(e.clientX-drag.x),w=drag.w;
+  if(drag.mode=='m'){const d=snap(drag.s0+dt)-drag.s0;w.start=drag.s0+d;w.end=drag.e0+d}
+  else if(drag.mode=='l')w.start=Math.min(snap(drag.s0+dt),w.end-.02);
+  else w.end=Math.max(snap(drag.e0+dt),w.start+.02)};
+window.onmouseup=()=>{if(drag){fix(drag.w);drag=null}};
+function fix(w){w.start=+w.start.toFixed(3);w.end=+w.end.toFixed(3);const l=data.lines[w.li];
+  l.start=l.words[0].start;l.end=l.words[l.words.length-1].end}
+cv.ondblclick=e=>{const h=hit(e);if(!h)return;const t=prompt('단어 수정',h.w.text);if(t){h.w.text=t;data.lines[h.w.li].text=data.lines[h.w.li].words.map(x=>x.text).join(' ');dirty=true}};
+window.onkeydown=e=>{
+  if(e.target.tagName=='INPUT'||e.target.tagName=='SELECT')return;
+  if(e.code=='Space'){e.preventDefault();toggle()}
+  else if((e.ctrlKey||e.metaKey)&&e.key=='s'){e.preventDefault();save()}
+  else if(sel&&(e.key=='ArrowLeft'||e.key=='ArrowRight')){e.preventDefault();const d=(e.key=='ArrowLeft'?-1:1)*(e.shiftKey?.05:.01);sel.start+=d;sel.end+=d;fix(sel);dirty=true}
+  else if(sel&&e.key=='['){sel.start=+Math.min(audio.currentTime,sel.end-.02).toFixed(3);fix(sel);dirty=true}
+  else if(sel&&e.key==']'){sel.end=+Math.max(audio.currentTime,sel.start+.02).toFixed(3);fix(sel);dirty=true}
+};
+function toggle(){if(audio.paused){if(sel&&audio.currentTime>sel.end+5)audio.currentTime=sel.start;audio.play()}else audio.pause();$('play').textContent=audio.paused?'▶ 재생 (Space)':'⏸ 일시정지'}
+async function save(){const clean=JSON.parse(JSON.stringify(data));clean.lines.forEach(l=>l.words.forEach(w=>{delete w.li;delete w.wi}));
+  const r=await fetch('/api/save/'+song,{method:'POST',body:JSON.stringify(clean)});
+  $('msg').textContent=r.ok?'저장됨 '+new Date().toLocaleTimeString():'저장 실패';dirty=false}
+$('play').onclick=toggle;$('save').onclick=save;$('zoom').oninput=()=>buf&&resize();
+$('rate').onchange=()=>audio&&(audio.playbackRate=+$('rate').value);
+$('song').onchange=()=>{audio&&audio.pause();load($('song').value)};
+window.onbeforeunload=e=>dirty?(e.preventDefault(),''):undefined;
+fetch('/api/songs').then(r=>r.json()).then(l=>{$('song').innerHTML=l.map(n=>`<option>${n}</option>`).join('');if(l.length)load(l[0])});
+</script></body></html>
