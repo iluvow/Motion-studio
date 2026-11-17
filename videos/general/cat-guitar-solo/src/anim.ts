@@ -29,7 +29,8 @@ export function strum(t: number) {
   const rest = since < 0.2 ? 1 : 0.3 + 0.7 * Math.exp(-(since - 0.2) * 5);
   if (toNext < 0.3) {
     const x = toNext / 0.3;
-    return x > 0.4 ? rest + (1 - rest) * easeInOut((1 - x) / 0.6) : 1 - easeIn(1 - x / 0.4);
+    // 줄을 치러 내려올 때는 3제곱 대신 2제곱 가속 (마지막 순간의 속도가 덜 급해서 프레임 사이 점프가 작다)
+    return x > 0.4 ? rest + (1 - rest) * easeInOut((1 - x) / 0.6) : 1 - Math.pow(1 - x / 0.4, 2);
   }
   return since < 0.2 ? easeOut(since / 0.2) : rest;
 }

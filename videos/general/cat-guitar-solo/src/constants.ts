@@ -25,14 +25,9 @@ export const CAT = {w: 978, h: 1608, scale: 1.1, cx: 1290, top: -64};
 /** 꼬리가 몸에 붙는 점 (이미지 좌표) */
 export const TAIL_PIVOT = {x: 258, y: 1215};
 
-/** 연주하는 손 높이(이미지 y)와 해당 자세 파일 — 위쪽일수록 작은 값 */
-export const ARM_POSES: {name: string; y: number}[] = [
-  {name: 'down', y: 961},
-  {name: 'orig', y: 910},
-  {name: 'mid', y: 831},
-  {name: 'p17', y: 810},
-  {name: 'up', y: 768},
-];
+/** 연주하는 손 높이(이미지 y)별 자세 24장 (내림→올림). 원본 5장 사이를 tools/interp_arm.py가 채운 목록. */
+import armPoses from './arm_poses.json';
+export const ARM_POSES: {name: string; y: number}[] = armPoses;
 
 /** 가사 자리 표시 (레퍼런스의 글자 타이밍: 약 1.3초 보이고 0.5초 쉼) */
 export const LYRICS: {t: number; lines: string[]}[] = [

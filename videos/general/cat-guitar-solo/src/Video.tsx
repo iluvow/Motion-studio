@@ -24,7 +24,9 @@ const ss = (x: number, a: number, b: number) => {
 
 const Cat: React.FC<{t: number}> = ({t}) => {
   /* ── 연주 팔 ── */
-  const armName = armPose(strum(t));
+  /* 모션 블러: 셔터가 열린 동안(앞뒤 1/120초)의 두 자세를 반반 섞는다. 느린 구간에서는 같은 그림이라 티가 안 난다. */
+  const armA = armPose(strum(t - 1 / 120));
+  const armB = armPose(strum(t + 1 / 120));
 
   /* ── 머리: 눈 상태만 이미지로 섞고(같은 자세라 겹쳐도 안 어긋남), 끄덕임·갸웃은 머리를 직접 움직인다 ── */
   const act = active(t);
@@ -64,7 +66,8 @@ const Cat: React.FC<{t: number}> = ({t}) => {
       <div style={{position: 'absolute', inset: 0, transformOrigin: `${TAIL_PIVOT.x * S}px ${TAIL_PIVOT.y * S}px`, transform: `rotate(${tailRot}deg)`}}>
         <L file={`tail_${tailState}`} opacity={1} />
       </div>
-      <L file={`arm_${armName}`} opacity={1} />
+      <L file={`arm_${armA}`} opacity={1} />
+      {armB !== armA && <L file={`arm_${armB}`} opacity={0.5} />}
       <div style={{position: 'absolute', inset: 0, transformOrigin: `${490 * S}px ${640 * S}px`, transform: `translateY(${headY}px) rotate(${headRot}deg)`}}>
         {heads.map((nm, i) => <L key={nm} file={`head_${nm}`} opacity={hOp[i]} />)}
       </div>
