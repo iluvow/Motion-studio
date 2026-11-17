@@ -1,4 +1,4 @@
-import {KICKS} from './constants';
+import {CLIP_BEAT, KICKS} from './constants';
 
 export const clamp = (x: number, a = 0, b = 1) => Math.min(b, Math.max(a, x));
 export const easeOut = (x: number) => 1 - Math.pow(1 - clamp(x), 3);
@@ -61,3 +61,18 @@ export function cumulative(weights: number[]) {
 }
 
 export const bump = (x: number, c: number, w: number) => 0.5 * (1 + Math.cos(Math.PI * clamp(Math.abs(x - c) / w)));
+
+const mod = (x: number, m: number) => ((x % m) + m) % m;
+/**
+ * 노래 시간 t 에서 클립 안의 재생 위치(초). 한 박자(클립 30프레임)가 노래의 킥~킥 간격에 정확히 걸리도록
+ * 박자마다 속도를 미세하게 맞춰서, 줄을 치는 순간이 항상 킥과 겹친다. 쉬는 구간은 원래 속도로 이어간다.
+ */
+export function beatClipTime(t: number, impact: number, clipLen: number) {
+  const i = prevIdx(KICKS, t);
+  if (i < 0) return mod(impact + (t - KICKS[0]), clipLen);
+  const prev = KICKS[i];
+  const next = i + 1 < KICKS.length ? KICKS[i + 1] : 1e9;
+  const gap = next - prev;
+  const base = i * CLIP_BEAT + impact;
+  return mod(gap < 0.6 ? base + ((t - prev) / gap) * CLIP_BEAT : base + (t - prev), clipLen);
+}

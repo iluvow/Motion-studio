@@ -1,0 +1,66 @@
+{
+ "strum_A": {
+  "frames": 240,
+  "fps": 63.0,
+  "duration": 3.8095,
+  "w": 1200,
+  "h": 1444,
+  "pad": 60
+ },
+ "strum_B": {
+  "frames": 240,
+  "fps": 63.0,
+  "duration": 3.8095,
+  "w": 1200,
+  "h": 1444,
+  "pad": 60
+ },
+ "idle": {
+  "frames": 240,
+  "fps": 63.0,
+  "duration": 3.8095,
+  "w": 1200,
+  "h": 1444,
+  "pad": 60
+ },
+ "final_hit": {
+  "frames": 140,
+  "fps": 63.0,
+  "duration": 2.2222,
+  "w": 1200,
+  "h": 1444,
+  "pad": 60
+ },
+ "smirk": {
+  "frames": 240,
+  "fps": 63.0,
+  "duration": 3.8095,
+  "w": 1200,
+  "h": 1444,
+  "pad": 60
+ },
+ "look_down_up": {
+  "frames": 240,
+  "fps": 63.0,
+  "duration": 3.8095,
+  "w": 1200,
+  "h": 1444,
+  "pad": 60
+ },
+ "tail_ear": {
+  "frames": 240,
+  "fps": 63.0,
+  "duration": 3.8095,
+  "w": 1200,
+  "h": 1444,
+  "pad": 60
+ },
+ "headbang": {
+  "frames": 240,
+  "fps": 63.0,
+  "duration": 3.8095,
+  "w": 1200,
+  "h": 1444,
+  "pad": 60
+ }
+}

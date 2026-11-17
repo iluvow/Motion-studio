@@ -1,77 +1,20 @@
 import React from 'react';
 import {AbsoluteFill, Audio, Img, interpolate, staticFile, useCurrentFrame} from 'remotion';
-import {ARM_POSES, AUDIO_FILE, C, CAT, FPS, H, KICKS, LABEL, LYRICS, LYRIC_HOLD, PERIOD, TAIL_PIVOT, W} from './constants';
-import {active, bump, clamp, cumulative, easeOut, hit, prevIdx, strum} from './anim';
+import {AUDIO_FILE, C, CLIP_META, CLIP_VIEW, FPS, H, IMPACT, LABEL, LYRICS, LYRIC_HOLD, SCHEDULE, W} from './constants';
+import {beatClipTime, clamp, easeOut, prevIdx} from './anim';
 
-const S = CAT.scale;
-const layerStyle = (opacity: number): React.CSSProperties => ({
-  position: 'absolute', left: 0, top: 0, width: CAT.w * S, height: CAT.h * S, opacity,
-});
-const L: React.FC<{file: string; opacity: number}> = ({file, opacity}) =>
-  opacity > 0.003 ? <Img src={staticFile(`cat/${file}.png`)} style={layerStyle(opacity)} /> : null;
-
-/** 연주 팔: 손 높이에 가장 가까운 자세 한 장 (섞으면 손이 두 개로 보여서 한 장씩 바꾼다) */
-function armPose(p: number) {
-  const y = ARM_POSES[0].y - (ARM_POSES[0].y - ARM_POSES[ARM_POSES.length - 1].y) * clamp(p);
-  let best = ARM_POSES[0];
-  for (const a of ARM_POSES) if (Math.abs(a.y - y) < Math.abs(best.y - y)) best = a;
-  return best.name;
-}
-const ss = (x: number, a: number, b: number) => {
-  const t = clamp((x - a) / (b - a));
-  return t * t * (3 - 2 * t);
-};
-
-const Cat: React.FC<{t: number}> = ({t}) => {
-  /* ── 연주 팔 ── */
-  /* 모션 블러: 셔터가 열린 동안(앞뒤 1/120초)의 두 자세를 반반 섞는다. 느린 구간에서는 같은 그림이라 티가 안 난다. */
-  const armA = armPose(strum(t - 1 / 120));
-  const armB = armPose(strum(t + 1 / 120));
-
-  /* ── 머리: 눈 상태만 이미지로 섞고(같은 자세라 겹쳐도 안 어긋남), 끄덕임·갸웃은 머리를 직접 움직인다 ── */
-  const act = active(t);
-  const nodAmt = hit(t, 0.14) * act;                                     // 킥에서 1 → 0
-  const lift = strum(t);                                                  // 팔이 올라갈 때 머리도 살짝 든다
-  const tilt = 4.5 * Math.sin((2 * Math.PI * t) / (PERIOD * 8) + 1);       // 갸웃 (도)
-  const headY = (-4 * lift + 15 * nodAmt) * S;
-  const headRot = tilt + 1.6 * nodAmt;
-  const halfRaw = 0.5 + 0.5 * Math.sin((2 * Math.PI * t) / 5.7);
-  const bl = (t - 1.1 + 340) % 3.4;
-  const wBlink = bl < 0.16 ? Math.sin((bl / 0.16) * Math.PI) : 0;
-  const wHalf = (1 - wBlink) * ss(halfRaw, 0.45, 0.75) * 0.9;
-  const hOp = cumulative([Math.max(0, 1 - wBlink - wHalf), wHalf, wBlink]);
-  const heads = ['neutral', 'half', 'blink'];
-
-  /* ── 꼬리: 4박(한 마디)마다 첫 박에서 모양이 바뀌고, 어느 모양이든 몸보다 늦게 흔들림 ── */
-  const bar = Math.floor((t - KICKS[0]) / (PERIOD * 4));
-  const TAIL_PATTERN = ['base', 'base', 'up', 'base', 'base', 'swish', 'base', 'up'];
-  const tailState = TAIL_PATTERN[((bar % TAIL_PATTERN.length) + TAIL_PATTERN.length) % TAIL_PATTERN.length];
-  const tailRot = 5 * Math.sin((2 * Math.PI * t) / (PERIOD * 4) - 0.9);
-
-  /* ── 몸 전체: 숨쉬기, 킥에 살짝 눌림, 천천히 기울기 ── */
-  const breathe = 1 + 0.004 * Math.sin((2 * Math.PI * t) / 3.1);
-  const k = hit(t, 0.12) * act;
-  const sway = 0.5 * Math.sin((2 * Math.PI * t) / (PERIOD * 4));
-
+/** 노래 시간에 맞는 클립 프레임 이미지 */
+const ClipCat: React.FC<{t: number}> = ({t}) => {
+  const entry = SCHEDULE.find((s) => t >= s.from && t < s.to) ?? SCHEDULE[SCHEDULE.length - 1];
+  const meta = CLIP_META[entry.clip];
+  const ct = beatClipTime(t, IMPACT[entry.clip], meta.duration);
+  const idx = clamp(Math.floor((ct / meta.duration) * meta.frames), 0, meta.frames - 1);
+  const s = CLIP_VIEW.scale;
   return (
-    <div
-      style={{
-        position: 'absolute', left: 0, top: 0, width: CAT.w * S, height: CAT.h * S,
-        transformOrigin: `${489 * S}px ${1250 * S}px`,
-        transform: `translateY(${k * 9}px) rotate(${sway}deg) scale(${1 + k * 0.004}, ${breathe - k * 0.012})`,
-      }}
-    >
-      <L file="glow" opacity={0.85 + 0.1 * Math.sin(t * 5.1)} />
-      {/* 꼬리 (몸 뒤) */}
-      <div style={{position: 'absolute', inset: 0, transformOrigin: `${TAIL_PIVOT.x * S}px ${TAIL_PIVOT.y * S}px`, transform: `rotate(${tailRot}deg)`}}>
-        <L file={`tail_${tailState}`} opacity={1} />
-      </div>
-      <L file={`arm_${armA}`} opacity={1} />
-      {armB !== armA && <L file={`arm_${armB}`} opacity={0.5} />}
-      <div style={{position: 'absolute', inset: 0, transformOrigin: `${490 * S}px ${640 * S}px`, transform: `translateY(${headY}px) rotate(${headRot}deg)`}}>
-        {heads.map((nm, i) => <L key={nm} file={`head_${nm}`} opacity={hOp[i]} />)}
-      </div>
-    </div>
+    <Img
+      src={staticFile(`clips/${entry.clip}/f${String(idx).padStart(3, '0')}.webp`)}
+      style={{position: 'absolute', left: CLIP_VIEW.cx - (meta.w * s) / 2, top: CLIP_VIEW.top, width: meta.w * s, height: meta.h * s}}
+    />
   );
 };
 
@@ -115,9 +58,8 @@ const Lyrics: React.FC<{t: number}> = ({t}) => {
 export const Video: React.FC = () => {
   const frame = useCurrentFrame();
   const t = frame / FPS;
-
-  /* 카메라: 처음에 클로즈업에서 빠지며 자리 잡고(0.9초), 이후 8초 주기로 천천히 좌우 흔들림.
-     캐릭터는 배경보다 1.7배 더 움직여 깊이감을 준다. (레퍼런스 영상 측정값) */
+  /* 카메라: 처음 0.9초에 클로즈업에서 빠지며 자리 잡고, 이후 8초 주기로 천천히 좌우 흔들림.
+     캐릭터는 배경보다 1.7배 더 움직여 깊이감을 준다 (레퍼런스 영상 측정값). */
   const intro = 1 + 0.43 * (1 - easeOut(t / 0.9));
   const bgIntro = 1 + 0.1 * (1 - easeOut(t / 0.9));
   const ph = (2 * Math.PI * t) / 8;
@@ -125,21 +67,14 @@ export const Video: React.FC = () => {
   const bgX = A * Math.sin(ph);
   const catX = 1.7 * A * Math.sin(ph), catY = 0.006 * H * Math.cos(ph + 0.5);
   const fade = interpolate(frame, [0, 30], [1, 0], {extrapolateRight: 'clamp'});
-
   return (
     <AbsoluteFill style={{background: '#000'}}>
       <Audio src={staticFile(AUDIO_FILE)} />
       <Bg t={t} x={bgX} zoom={bgIntro} />
       <AbsoluteFill style={{background: 'radial-gradient(ellipse at 55% 50%, rgba(0,0,0,0) 55%, rgba(8,4,12,0.5) 100%)', pointerEvents: 'none'}} />
       <Lyrics t={t} />
-      <div style={{position: 'absolute', inset: 0, transformOrigin: `${CAT.cx}px 700px`, transform: `scale(${intro}) translate(${catX}px, ${catY}px)`}}>
-        <div
-          style={{
-            position: 'absolute', left: CAT.cx - (CAT.w * S) / 2, top: CAT.top, width: CAT.w * S, height: CAT.h * S,
-          }}
-        >
-          <Cat t={t} />
-        </div>
+      <div style={{position: 'absolute', inset: 0, transformOrigin: `${CLIP_VIEW.cx}px 700px`, transform: `scale(${intro}) translate(${catX}px, ${catY}px)`}}>
+        <ClipCat t={t} />
       </div>
       <AbsoluteFill style={{background: '#0a0610', opacity: fade, pointerEvents: 'none'}} />
     </AbsoluteFill>

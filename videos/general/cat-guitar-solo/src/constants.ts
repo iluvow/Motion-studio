@@ -38,3 +38,19 @@ export const LYRICS: {t: number; lines: string[]}[] = [
 ];
 export const LYRIC_HOLD = 1.3;
 export const LABEL = 'Lone Digger';
+
+/** AI 애니메이션 클립 (tools/prep_clip.py 로 프레임 이미지로 변환한 것) */
+import clipMeta from './clips.json';
+export const CLIP_META: Record<string, {frames: number; fps: number; duration: number; w: number; h: number; pad: number}> = clipMeta;
+/** 클립 안에서 손이 줄을 치는 순간(초). 노래의 킥에 이 순간을 맞춘다. 연주가 거의 없는 클립은 0. */
+export const IMPACT: Record<string, number> = {
+  strum_A: 24 / 63, strum_B: 24 / 63, headbang: 26 / 63, smirk: 26 / 63, look_down_up: 25 / 63, tail_ear: 26 / 63, idle: 0, final_hit: 0,
+};
+export const CLIP_BEAT = 30 / 63; // 클립 한 박자(30프레임)
+/** 클립 배치표: [시작초, 끝초, 클립]. 킥 시점에서 바꾼다. */
+export const SCHEDULE: {from: number; to: number; clip: string}[] = [
+  {from: 0, to: 2.905, clip: 'strum_A'},
+  {from: 2.905, to: 30, clip: 'strum_B'},
+];
+/** 클립 화면 배치: 원본 프레임(여백 포함)을 이 배율로 그린다 */
+export const CLIP_VIEW = {scale: 1.08, cx: 1290, top: -91};
