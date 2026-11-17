@@ -15,6 +15,12 @@ import cv2
 import numpy as np
 from PIL import Image
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import fix_blink  # noqa: E402
+
+# 눈이 들쭉날쭉하게 감기는 구간(프레임) → 직전/직후의 뜬 눈으로 덮는다. smirk 의 윙크는 의도된 동작이라 그대로 둔다.
+BLINK_FIX = {'strum_A': [(86, 114)], 'idle': [(99, 129)]}
+
 SRC, OUT = sys.argv[1], sys.argv[2]
 NAMES = sys.argv[3:] or ['strum_A', 'strum_B', 'idle', 'final_hit', 'smirk', 'look_down_up', 'tail_ear', 'headbang']
 PAD = 60                          # 글로우가 가장자리에서 잘리지 않게 여백을 둔다
@@ -55,12 +61,18 @@ def run(name):
     cap = cv2.VideoCapture(f'{SRC}/{name}.mp4')
     n_fps = cap.get(cv2.CAP_PROP_FPS)
     os.makedirs(f'{OUT}/{name}', exist_ok=True)
-    total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-    i = 0
+    frames = []
     while True:
         ok, f = cap.read()
         if not ok:
             break
+        frames.append(f)
+    if name in BLINK_FIX:
+        pos = fix_blink.track(frames)
+        for s_, e_ in BLINK_FIX[name]:
+            fix_blink.fix_span(frames, s_, e_, pos)
+    i = 0
+    for f in frames:
         path = f'{OUT}/{name}/f{i:03d}.webp'
         if not os.path.exists(path):                 # 이미 처리한 프레임은 건너뜀
             Image.fromarray(process(f), 'RGBA').save(path, quality=92, alpha_quality=100, method=4)
