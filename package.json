@@ -19,6 +19,9 @@
   "homepage": "https://github.com/iluvow/Motion-studio#readme",
   "dependencies": {
     "@fontsource/noto-sans-kr": "^5.3.1",
+    "@fontsource/noto-sans-sc": "^5.3.1",
+    "@fontsource/noto-serif-kr": "^5.3.1",
+    "@fontsource/noto-serif-sc": "^5.3.1",
     "@react-three/fiber": "^9.8.2",
     "@remotion/bundler": "^4.0.543",
     "@remotion/cli": "^4.0.543",
