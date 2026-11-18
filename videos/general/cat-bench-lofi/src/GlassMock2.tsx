@@ -50,25 +50,40 @@ export const GlassMock2: React.FC<Glass2Props> = ({line, time, refract = 90, ko 
             <feComposite in="mx" in2="my" operator="arithmetic" k1="0" k2="1" k3="1" k4="0" result="map" />
             {/* 3. 확대한 배경을 가장자리 기울기대로 밀어서 굴절 */}
             <feImage href={img} x={-W * 0.03} y={-H * 0.03} width={W * 1.06} height={H * 1.06} preserveAspectRatio="none" result="bg" />
-            <feComponentTransfer in="bg" result="bgl"><feFuncR type="linear" slope="1.9" intercept="0.14" /><feFuncG type="linear" slope="1.9" intercept="0.14" /><feFuncB type="linear" slope="1.9" intercept="0.14" /></feComponentTransfer>
-            <feDisplacementMap in="bgl" in2="map" scale={refract} xChannelSelector="R" yChannelSelector="G" result="refr" />
+            <feComponentTransfer in="bg" result="bgl"><feFuncR type="linear" slope="1.7" intercept="0.12" /><feFuncG type="linear" slope="1.7" intercept="0.12" /><feFuncB type="linear" slope="1.7" intercept="0.12" /></feComponentTransfer>
+            {/* 색수차: 빨강/초록/파랑을 조금씩 다르게 굴절시켜 가장자리에 무지개빛이 살짝 */}
+            <feDisplacementMap in="bgl" in2="map" scale={refract * 1.0} xChannelSelector="R" yChannelSelector="G" result="dr" />
+            <feDisplacementMap in="bgl" in2="map" scale={refract * 0.88} xChannelSelector="R" yChannelSelector="G" result="dg" />
+            <feDisplacementMap in="bgl" in2="map" scale={refract * 0.76} xChannelSelector="R" yChannelSelector="G" result="db" />
+            <feColorMatrix in="dr" type="matrix" values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0 1" result="cr" />
+            <feColorMatrix in="dg" type="matrix" values="0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 0 1" result="cg" />
+            <feColorMatrix in="db" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 0 1" result="cb" />
+            <feComposite in="cr" in2="cg" operator="arithmetic" k2="1" k3="1" result="crg" />
+            <feComposite in="crg" in2="cb" operator="arithmetic" k2="1" k3="1" result="refr0" />
+            <feColorMatrix in="refr0" type="saturate" values="1.45" result="refr" />
             <feComposite in="refr" in2="shape" operator="in" result="glass" />
-            {/* 4. 은은한 흰 막 */}
-            <feFlood floodColor="#fff6e6" floodOpacity="0.2" />
+            {/* 4. 따뜻한 크림빛 막 (탁한 회색 대신 노을빛으로 밝게) */}
+            <feFlood floodColor="#ffe2b0" floodOpacity="0.16" />
             <feComposite in2="shape" operator="in" result="tint" />
+            {/* 안쪽 가장자리가 빛나는 띠 */}
+            <feMorphology in="shape" operator="erode" radius="11" result="er2" />
+            <feComposite in="shape" in2="er2" operator="out" result="band0" />
+            <feGaussianBlur in="band0" stdDeviation="5" result="band1" />
+            <feComposite in="band1" in2="shape" operator="in" result="band2" />
+            <feColorMatrix in="band2" type="matrix" values="0 0 0 0 1  0 0 0 0 0.95  0 0 0 0 0.88  0 0 0 0.5 0" result="band" />
             {/* 5. 반사광: 왼쪽 위에서 오는 흰 하이라이트 + 오른쪽 아래의 노을빛 반사 */}
             <feSpecularLighting in="h" surfaceScale="6" specularConstant="0.85" specularExponent="34" lightingColor="#ffffff" result="s1"><feDistantLight azimuth="235" elevation="48" /></feSpecularLighting>
             <feComposite in="s1" in2="shape" operator="in" result="spec1" />
             <feSpecularLighting in="h" surfaceScale="6" specularConstant="0.7" specularExponent="30" lightingColor="#ffb86b" result="s2"><feDistantLight azimuth="50" elevation="40" /></feSpecularLighting>
             <feComposite in="s2" in2="shape" operator="in" result="spec2" />
             {/* 6. 가장자리 얇은 테두리 빛 */}
-            <feMorphology in="shape" operator="erode" radius="2.5" result="er" />
+            <feMorphology in="shape" operator="erode" radius="3" result="er" />
             <feComposite in="shape" in2="er" operator="out" result="edge" />
-            <feColorMatrix in="edge" type="matrix" values="1 1 1 0 0  1 1 1 0 0  1 1 1 0 0  0 0 0 0.55 0" result="rim" />
-            <feMerge><feMergeNode in="glass" /><feMergeNode in="tint" /><feMergeNode in="spec2" /><feMergeNode in="spec1" /><feMergeNode in="rim" /></feMerge>
+            <feColorMatrix in="edge" type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.95 0" result="rim" />
+            <feMerge><feMergeNode in="glass" /><feMergeNode in="tint" /><feMergeNode in="band" /><feMergeNode in="spec2" /><feMergeNode in="spec1" /><feMergeNode in="rim" /></feMerge>
           </filter>
         </defs>
-        <g filter="url(#shadow)" opacity={0.32} transform="translate(0 20)">{zhText('#05060f')}</g>
+        <g filter="url(#shadow)" opacity={0.2} transform="translate(0 22)">{zhText('#05060f')}</g>
         <g filter="url(#lg)">{zhText('#000')}</g>
         {ko === 'solid' ? (
           <text x={SAFE.x} y={koY} fontFamily="NotoKR, sans-serif" fontWeight={700} fontSize={ks} fill="#ffe6c2" style={{filter: 'drop-shadow(0 3px 14px rgba(0,0,0,0.55))'}}>{L.ko}</text>
