@@ -50,7 +50,7 @@ export const GlassMock2: React.FC<Glass2Props> = ({line, time, refract = 90, ko 
             <feComposite in="mx" in2="my" operator="arithmetic" k1="0" k2="1" k3="1" k4="0" result="map" />
             {/* 3. 확대한 배경을 가장자리 기울기대로 밀어서 굴절 */}
             <feImage href={img} x={-W * 0.03} y={-H * 0.03} width={W * 1.06} height={H * 1.06} preserveAspectRatio="none" result="bg" />
-            <feComponentTransfer in="bg" result="bgl"><feFuncR type="linear" slope="1.7" intercept="0.12" /><feFuncG type="linear" slope="1.7" intercept="0.12" /><feFuncB type="linear" slope="1.7" intercept="0.12" /></feComponentTransfer>
+            <feComponentTransfer in="bg" result="bgl"><feFuncR type="linear" slope="1.45" intercept="0.07" /><feFuncG type="linear" slope="1.45" intercept="0.07" /><feFuncB type="linear" slope="1.45" intercept="0.07" /></feComponentTransfer>
             {/* 색수차: 빨강/초록/파랑을 조금씩 다르게 굴절시켜 가장자리에 무지개빛이 살짝 */}
             <feDisplacementMap in="bgl" in2="map" scale={refract * 1.0} xChannelSelector="R" yChannelSelector="G" result="dr" />
             <feDisplacementMap in="bgl" in2="map" scale={refract * 0.88} xChannelSelector="R" yChannelSelector="G" result="dg" />
@@ -63,7 +63,7 @@ export const GlassMock2: React.FC<Glass2Props> = ({line, time, refract = 90, ko 
             <feColorMatrix in="refr0" type="saturate" values="1.45" result="refr" />
             <feComposite in="refr" in2="shape" operator="in" result="glass" />
             {/* 4. 따뜻한 크림빛 막 (탁한 회색 대신 노을빛으로 밝게) */}
-            <feFlood floodColor="#ffe2b0" floodOpacity="0.16" />
+            <feFlood floodColor="#ffe2b0" floodOpacity="0.05" />
             <feComposite in2="shape" operator="in" result="tint" />
             {/* 안쪽 가장자리가 빛나는 띠 */}
             <feMorphology in="shape" operator="erode" radius="11" result="er2" />
