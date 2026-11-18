@@ -6,7 +6,7 @@ const clamp = (x: number, a = 0, b = 1) => Math.min(b, Math.max(a, x));
 const easeOut = (x: number) => 1 - Math.pow(1 - clamp(x), 3);
 
 /* 글꼴: Noto Sans KR (npm @fontsource) */
-const FONT_CSS = `
+export const FONT_CSS = `
 @font-face{font-family:'NotoKR';font-weight:800;src:url(${staticFile('fonts/noto-sans-kr-korean-800-normal.woff2')}) format('woff2');unicode-range:U+AC00-D7A3,U+1100-11FF,U+3130-318F;}
 @font-face{font-family:'NotoKR';font-weight:700;src:url(${staticFile('fonts/noto-sans-kr-korean-700-normal.woff2')}) format('woff2');unicode-range:U+AC00-D7A3,U+1100-11FF,U+3130-318F;}
 @font-face{font-family:'NotoKR';font-weight:800;src:url(${staticFile('fonts/noto-sans-kr-latin-800-normal.woff2')}) format('woff2');unicode-range:U+0000-00FF;}
