@@ -10,8 +10,7 @@ import data from './data/luolei.json';
 const clamp = (x: number, a = 0, b = 1) => Math.min(b, Math.max(a, x));
 const FADE = 0.12;       // 줄이 나타나고 사라지는 시간 (짧게)
 const LEAD = 0.12;       // 첫 글자보다 이만큼 먼저 줄이 나타난다
-const DIM = 0.3;         // 아직 안 부른 글자의 밝기
-const RAMP_BEFORE = 0.02, RAMP_AFTER = 0.06;   // 글자가 밝아지는 구간 (시작 직전~직후)
+const HOLD = 0.55;        // 마지막 글자가 불린 뒤 줄이 남아 있는 시간
 
 type Line = (typeof data.lines)[number];
 const lines: Line[] = data.lines;
@@ -29,15 +28,17 @@ export const LyricZh: React.FC<{showIndex?: boolean}> = ({showIndex = true}) => 
   const next = a >= 0 && a + 1 < lines.length ? lines[a + 1] : null;
   const same = (x: Line | null, y: Line | null) => !!x && !!y && x.zh === y.zh;
 
-  let alpha = 0, settle = 1;
+  let alpha = 0;
   if (L) {
+    const lastT = L.chars[L.chars.length - 1].t;
+    const showUntil = lastT + HOLD;                                      // 이 줄이 화면에 있는 마지막 시각
     const tin = t - (L.start - LEAD);
-    const repeatIn = same(prev, L) && L.start - prev!.end < 0.6;
-    alpha = repeatIn ? 1 : clamp(tin / FADE);
-    settle = repeatIn ? clamp(tin / 0.08) : 1;                       // 반복 줄: 글자가 빠르게 다시 어두워짐
-    const nextStartIn = next ? next.start - LEAD : L.end + 0.5;
-    const repeatOut = same(L, next) && next!.start - L.end < 0.6;
-    if (!repeatOut) alpha *= clamp((nextStartIn - t) / FADE);       // 다음 줄이 나타나기 직전에 사라짐
+    const repeatIn = same(prev, L) && L.start - (prev!.chars[prev!.chars.length - 1].t + HOLD) < 0.4;
+    const repeatOut = same(L, next) && (next!.start - LEAD) - showUntil < 0.4;
+    const nextIn = next ? next.start - LEAD : Infinity;
+    const endT = repeatOut ? nextIn : Math.min(showUntil, nextIn - FADE);   // 다음 줄이 나타나기 전에 먼저 사라짐
+    alpha = (repeatIn ? 1 : clamp(tin / FADE)) * (repeatOut ? 1 : clamp((endT + FADE - t) / FADE));
+    if (t > endT + FADE && !repeatOut) alpha = 0;
   }
 
   const size = L ? zhSize(Array.from(L.zh).length) : 150;
@@ -50,11 +51,7 @@ export const LyricZh: React.FC<{showIndex?: boolean}> = ({showIndex = true}) => 
       {L && (
         <div style={{position: 'absolute', left: SAFE.x, top: 270, width: 960, color: C.text, opacity: alpha}}>
           <div style={{fontFamily: "'Noto Serif SC', serif", fontWeight: 700, fontSize: size, lineHeight: 1.18, letterSpacing: 4, textWrap: 'balance' as any, textShadow: '0 4px 26px rgba(0,0,0,0.55)'}}>
-            {L.chars.map((ch, j) => {
-              const lit = clamp((t - (ch.t - RAMP_BEFORE)) / (RAMP_BEFORE + RAMP_AFTER));
-              const v = DIM + (1 - DIM) * (1 - settle + settle * lit);     // settle=0(반복 직후)이면 전부 밝은 상태에서 시작
-              return <span key={j} style={{opacity: v}}>{ch.c}</span>;
-            })}
+            {L.zh}
           </div>
           <div style={{marginTop: 56, fontFamily: 'NotoKR, sans-serif', fontWeight: 700, fontSize: Math.round(size * 0.5), lineHeight: 1.3, color: 'rgba(255,255,255,0.92)', textShadow: '0 3px 18px rgba(0,0,0,0.5)'}}>{L.ko}</div>
         </div>
