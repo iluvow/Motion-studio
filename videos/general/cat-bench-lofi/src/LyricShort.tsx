@@ -8,7 +8,7 @@ import {SONG_DURATION, SONG_LINES, SongLine} from './data/luolei_lines';
 const FADE_IN = 0.3;           // 줄이 나타나는 시간
 const FADE_OUT = 0.4;          // 사라지는 시간 (다음 줄이 나오기 직전에 시작해서 끝남)
 const LEAD = 0.08;             // 노래보다 이만큼 먼저 나타남
-const TEXT_TOP = 330;
+const TEXT_TOP = 285;
 const WIDTH = W - 2 * SAFE.x;
 const ZH_FIT = 0.9, ZH_MAX = 270;            // 중국어 크기: 가장 긴 줄 글자 수로 맞춤
 const KO_RATIO = 0.5, KO_FIT = 0.92;         // 한국어 크기: 중국어의 절반, 줄 폭 안에서
