@@ -13,3 +13,5 @@ videos/**/public/cat/
 videos/**/clips/
 videos/**/scene/
 videos/**/public/*.png
+videos/**/data/
+videos/lyric/*/lyrics_raw.txt
