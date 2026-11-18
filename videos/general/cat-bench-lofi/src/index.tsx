@@ -7,12 +7,14 @@ import {MockZh, ZH_DEFAULTS} from './MockZh';
 import {LyricZh} from './LyricZh';
 import {LyricShort} from './LyricShort';
 import {GlassMock, GLASS_DEFAULTS} from './GlassMock';
+import {GlassMock2, GLASS2_DEFAULTS} from './GlassMock2';
 
 registerRoot(() => (
   <>
     <Composition id="CatBench" component={Video} durationInFrames={DURATION_SEC * FPS} fps={FPS} width={W} height={H} />
     <Composition id="LyricShort" component={LyricShort} durationInFrames={Math.ceil(25.47 * FPS)} fps={FPS} width={W} height={H} defaultProps={{showIndex: false}} />
     <Composition id="GlassMock" component={GlassMock} durationInFrames={1} fps={FPS} width={W} height={H} defaultProps={GLASS_DEFAULTS} />
+    <Composition id="GlassMock2" component={GlassMock2} durationInFrames={1} fps={FPS} width={W} height={H} defaultProps={GLASS2_DEFAULTS} />
  <Composition id="LyricZh" component={LyricZh} durationInFrames={Math.ceil(25.47 * 30)} fps={30} width={W} height={H} />
     <Composition id="MockZh" component={MockZh} durationInFrames={1} fps={FPS} width={W} height={H} defaultProps={ZH_DEFAULTS} />
     <Composition id="Mock" component={Mock} durationInFrames={1} fps={FPS} width={W} height={H} defaultProps={MOCK_DEFAULTS} />
