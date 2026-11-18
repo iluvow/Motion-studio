@@ -12,3 +12,4 @@ videos/**/analysis/
 videos/**/public/cat/
 videos/**/clips/
 videos/**/scene/
+videos/**/public/*.png
