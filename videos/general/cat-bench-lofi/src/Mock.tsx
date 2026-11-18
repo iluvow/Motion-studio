@@ -5,7 +5,7 @@ import {FONT_CSS} from './Video';
 
 const clamp = (x: number, a = 0, b = 1) => Math.min(b, Math.max(a, x));
 
-export type MockProps = {variant: 'word' | 'line'; progress: number; en: string; ko: string};
+export type MockProps = {variant: 'word' | 'line' | 'fill' | 'stack'; progress: number; en: string; ko: string};
 export const MOCK_DEFAULTS: MockProps = {
   variant: 'word', progress: 0.5,
   en: 'Walking home beneath the autumn sky',          // 자리 표시 문구 (실제 가사 아님)
@@ -15,6 +15,43 @@ export const MOCK_DEFAULTS: MockProps = {
 /** 시안: 글자 영역 = 왼쪽 8% ~ 70%, 위에서 12% ~ 60% */
 export const Mock: React.FC<MockProps> = ({variant, progress, en, ko}) => {
   const words = en.split(' ');
+  const SAMPLE = [                                   // 자리 표시 문구 (실제 가사 아님)
+    {en: 'Walking home beneath the autumn sky', ko: '가을 하늘 아래, 집으로 걸어가요'},
+    {en: 'The street lamp hums a quiet tune', ko: '가로등이 조용한 노래를 흥얼거려요'},
+    {en: 'And I forget what I was running from', ko: '무엇에서 도망쳤는지 잊어버려요'},
+  ];
+  const wordLine = (text: string, size: number, p: number, weight = 800) => (
+    <div style={{fontSize: size, fontWeight: weight, lineHeight: 1.22, letterSpacing: -1.5, textShadow: '0 4px 22px rgba(0,0,0,0.5)'}}>
+      {text.split(' ').map((w, i, arr) => {
+        const a = clamp(p * arr.length - i + 0.3);
+        return <span key={i} style={{opacity: 0.28 + 0.72 * a}}>{w}{' '}</span>;
+      })}
+    </div>
+  );
+  if (variant === 'fill' || variant === 'stack') {
+    return (
+      <AbsoluteFill style={{background: '#0b0d1a'}}>
+        <style>{FONT_CSS}</style>
+        <Img src={staticFile('scene.png')} style={{position: 'absolute', left: 0, top: 0, width: W, height: H}} />
+        <AbsoluteFill style={{background: 'linear-gradient(180deg, rgba(8,10,28,0.5) 0%, rgba(8,10,28,0.15) 62%, rgba(8,10,28,0) 72%)'}} />
+        <div style={{position: 'absolute', left: SAFE.x, top: 250, width: 950, fontFamily: 'NotoKR, Inter, sans-serif', color: C.text}}>
+          {variant === 'fill' ? (
+            <>
+              {wordLine(SAMPLE[0].en, 118, progress)}
+              <div style={{marginTop: 50, fontSize: 84, fontWeight: 700, lineHeight: 1.28, color: 'rgba(255,255,255,0.92)', textShadow: '0 3px 18px rgba(0,0,0,0.5)'}}>{SAMPLE[0].ko}</div>
+            </>
+          ) : (
+            SAMPLE.map((g, i) => (
+              <div key={i} style={{marginBottom: i < 2 ? 54 : 0, opacity: i === 1 ? 1 : 0.34}}>
+                {i === 1 ? wordLine(g.en, 82, progress) : <div style={{fontSize: 82, fontWeight: 800, lineHeight: 1.22, letterSpacing: -1.5}}>{g.en}</div>}
+                <div style={{marginTop: 14, fontSize: 60, fontWeight: 700, lineHeight: 1.28, color: 'rgba(255,255,255,0.92)'}}>{g.ko}</div>
+              </div>
+            ))
+          )}
+        </div>
+      </AbsoluteFill>
+    );
+  }
   return (
     <AbsoluteFill style={{background: '#0b0d1a'}}>
       <style>{FONT_CSS}</style>
