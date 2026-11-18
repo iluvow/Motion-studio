@@ -15,3 +15,4 @@ videos/**/scene/
 videos/**/public/*.png
 videos/**/data/
 videos/lyric/*/lyrics_raw.txt
+videos/**/public/*.mp4
