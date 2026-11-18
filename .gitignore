@@ -11,3 +11,4 @@ videos/**/analysis/
 .venv-blender/
 videos/**/public/cat/
 videos/**/clips/
+videos/**/scene/
