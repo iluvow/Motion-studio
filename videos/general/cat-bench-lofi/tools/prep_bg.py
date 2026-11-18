@@ -9,7 +9,7 @@ import cv2, numpy as np
 
 SRC, OUT, DUR = sys.argv[1], sys.argv[2], float(sys.argv[3])
 FPS = 24
-LOOP_START, LOOP_END, XFADE = 1.5, 8.5, 1.2          # 반복 구간(초)과 이어 붙일 때 겹치는 길이
+LOOP_A, LOOP_B, MORPH = 64, 195, 14                 # 반복 구간(프레임): 끝(B)에서 시작(A)으로 돌아갈 때 자세가 가장 비슷한 쌍. MORPH 프레임 동안 광학 흐름으로 자연스럽게 이어 붙임
 CROP_TOP, EXT = 270, 70                               # 위에서 자를 행 수, 아래에 덧붙일 행 수(원본 해상도 기준)
 STAR = (560, 1125, 640, 1195)                         # 워터마크 영역 x0,y0,x1,y1
 
@@ -37,20 +37,28 @@ def extend(f):
     out = np.concatenate([c, (ext * k).astype(np.uint8)])
     return cv2.resize(out, (1440, out.shape[0] * 2), interpolation=cv2.INTER_LANCZOS4)
 
-a, b = int(LOOP_START * FPS), int(LOOP_END * FPS)
-xf = int(XFADE * FPS)
-seg = frames[a:b]
+dis = cv2.DISOpticalFlow_create(cv2.DISOPTICAL_FLOW_PRESET_MEDIUM)
+def warp(img, flow):
+    h, w = flow.shape[:2]
+    gx, gy = np.meshgrid(np.arange(w, dtype=np.float32), np.arange(h, dtype=np.float32))
+    return cv2.remap(img, gx + flow[..., 0], gy + flow[..., 1], cv2.INTER_LINEAR, borderMode=cv2.BORDER_REPLICATE)
+def morph(A, B, n):
+    """A 자세에서 B 자세로 가는 중간 장면 n장 (양방향 광학 흐름으로 두 그림을 서로 끌어당겨 섞는다. 단순 크로스페이드처럼 두 겹으로 보이지 않는다)"""
+    gA, gB = cv2.cvtColor(A, cv2.COLOR_BGR2GRAY), cv2.cvtColor(B, cv2.COLOR_BGR2GRAY)
+    f01, f10 = dis.calc(gA, gB, None), dis.calc(gB, gA, None)
+    out = []
+    for k in range(1, n + 1):
+        t = k / (n + 1)
+        ft0 = -t * (1 - t) * f01 + t * t * f10
+        ft1 = (1 - t) ** 2 * f01 - t * (1 - t) * f10
+        I0, I1 = warp(A, ft0).astype(np.float32), warp(B, ft1).astype(np.float32)
+        out.append(((1 - t) * I0 + t * I1).clip(0, 255).astype(np.uint8))
+    return out
 n_out = int(DUR * FPS)
-# 순서: 처음 구간(0~LOOP_END) 한 번, 이후 반복 구간을 크로스페이드로 연결
-seq = list(range(0, b))
-timeline = [frames[i] for i in seq]
-def blend_in(tl, nxt_frames):
-    """tl 의 끝 xf 프레임을 nxt_frames 의 앞 xf 프레임과 섞고, 나머지를 이어 붙인다."""
-    head, tail = tl[:-xf], tl[-xf:]
-    mix = [cv2.addWeighted(tail[i], 1 - (i + 1) / (xf + 1), nxt_frames[i], (i + 1) / (xf + 1), 0) for i in range(xf)]
-    return head + mix + nxt_frames[xf:]
-while len(timeline) < n_out + xf:
-    timeline = blend_in(timeline, seg)
+timeline = frames[0:LOOP_B + 1]
+bridge = morph(frames[LOOP_B], frames[LOOP_A], MORPH)
+while len(timeline) < n_out:
+    timeline += bridge + frames[LOOP_A:LOOP_B + 1]
 timeline = timeline[:n_out]
 print('출력 프레임', len(timeline))
 
