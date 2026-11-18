@@ -6,12 +6,13 @@ import {FONT_CSS} from './Video';
 import {SONG_LINES} from './data/luolei_lines';
 
 /** 리퀴드 글라스 글자 시안 (스틸 전용). ko: 'glass' = 한국어도 유리, 'solid' = 한국어는 불투명 크림색 */
-export type GlassProps = {line: number; time: string; ko: 'glass' | 'solid'};
-export const GLASS_DEFAULTS: GlassProps = {line: 4, time: '8.3', ko: 'glass'};
+export type GlassProps = {line: number; time: string; ko: 'glass' | 'solid'; mode?: 'milk' | 'clear' | 'soft'};
+export const GLASS_DEFAULTS: GlassProps = {line: 4, time: '8.3', ko: 'solid', mode: 'clear'};
 
+const GO = {milk: [0.92, 0.74, 0.62], soft: [0.5, 0.26, 0.26], clear: [0.26, 0.08, 0.14]};
 const TOP = 330, WIDTH = W - 2 * SAFE.x;
 
-export const GlassMock: React.FC<GlassProps> = ({line, time, ko}) => {
+export const GlassMock: React.FC<GlassProps> = ({line, time, ko, mode = 'milk'}) => {
   const L = SONG_LINES[line];
   const zhLines = L.zh.split('\n');
   const m = Math.max(...zhLines.map((x) => Array.from(x).length));
@@ -39,12 +40,12 @@ export const GlassMock: React.FC<GlassProps> = ({line, time, ko}) => {
           <clipPath id="zh">{zhText({})}</clipPath>
           <clipPath id="kg">{koText({})}</clipPath>
           <linearGradient id="gl" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor="#ffffff" stopOpacity="0.92" />
-            <stop offset="0.55" stopColor="#fff0d8" stopOpacity="0.74" />
-            <stop offset="1" stopColor="#ffc27a" stopOpacity="0.62" />
+            <stop offset="0" stopColor="#ffffff" stopOpacity={GO[mode][0]} />
+            <stop offset="0.55" stopColor="#fff0d8" stopOpacity={GO[mode][1]} />
+            <stop offset="1" stopColor="#ffc27a" stopOpacity={GO[mode][2]} />
           </linearGradient>
           <filter id="rim" x="-5%" y="-5%" width="110%" height="110%">
-            <feMorphology in="SourceAlpha" operator="erode" radius="3" result="e" />
+            <feMorphology in="SourceAlpha" operator="erode" radius="4" result="e" />
             <feComposite in="SourceAlpha" in2="e" operator="out" result="edge" />
             <feFlood floodColor="#ffffff" floodOpacity="1" />
             <feComposite in2="edge" operator="in" />
@@ -55,15 +56,17 @@ export const GlassMock: React.FC<GlassProps> = ({line, time, ko}) => {
             <feFlood floodColor="#ffffff" floodOpacity="1" />
             <feComposite in2="edge" operator="in" />
           </filter>
+          <filter id="lift"><feComponentTransfer><feFuncR type="linear" slope="1.5" intercept="0.07" /><feFuncG type="linear" slope="1.5" intercept="0.07" /><feFuncB type="linear" slope="1.5" intercept="0.07" /></feComponentTransfer></filter>
           <filter id="sh" x="-10%" y="-10%" width="120%" height="130%"><feGaussianBlur stdDeviation="16" /></filter>
         </defs>
         {/* 그림자 */}
         <g filter="url(#sh)" opacity={0.55} transform="translate(0 14)">{zhText({fill: '#05060f'})}{ko === 'glass' && koText({fill: '#05060f'})}</g>
         {/* 유리 몸체: 흐린 배경 + 흰 안개 + 위는 밝고 아래는 노을빛 */}
         <g clipPath="url(#zh)">
-          <image href={blur} x={-30} y={-30} width={W + 60} height={H + 60} />
+          {mode === 'milk' ? <image href={blur} x={-30} y={-30} width={W + 60} height={H + 60} /> : (
+            <g filter="url(#lift)"><image href={img} x={-W * 0.035} y={-H * 0.035 + 12} width={W * 1.07} height={H * 1.07} /></g>
+          )}
           <rect x={bx} y={by} width={bw} height={bh} fill="url(#gl)" />
-          <image href={img} x={-60} y={-60 + 14} width={W + 120} height={H + 120} opacity={0.18} />
         </g>
         <g filter="url(#rim)" opacity={0.95}>{zhText({fill: '#000'})}</g>
         {ko === 'glass' ? (
