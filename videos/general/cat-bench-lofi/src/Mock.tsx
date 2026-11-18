@@ -13,6 +13,13 @@ export const MOCK_DEFAULTS: MockProps = {
 };
 
 /** 시안: 글자 영역 = 왼쪽 8% ~ 70%, 위에서 12% ~ 60% */
+/** 영문 길이에 따라 원문 글자 크기를 고른다. 번역은 원문의 약 0.72배. */
+export const sizeFor = (en: string) => {
+  const n = en.length;
+  const enSize = n <= 18 ? 156 : n <= 30 ? 140 : n <= 44 ? 126 : n <= 60 ? 110 : 96;
+  return {en: enSize, ko: Math.round(enSize * 0.72)};
+};
+
 export const Mock: React.FC<MockProps> = ({variant, progress, en, ko}) => {
   const words = en.split(' ');
   const SAMPLE = [                                   // 자리 표시 문구 (실제 가사 아님)
@@ -34,11 +41,11 @@ export const Mock: React.FC<MockProps> = ({variant, progress, en, ko}) => {
         <style>{FONT_CSS}</style>
         <Img src={staticFile('scene.png')} style={{position: 'absolute', left: 0, top: 0, width: W, height: H}} />
         <AbsoluteFill style={{background: 'linear-gradient(180deg, rgba(8,10,28,0.5) 0%, rgba(8,10,28,0.15) 62%, rgba(8,10,28,0) 72%)'}} />
-        <div style={{position: 'absolute', left: SAFE.x, top: 250, width: 950, fontFamily: 'NotoKR, Inter, sans-serif', color: C.text}}>
+        <div style={{position: 'absolute', left: SAFE.x, top: 250, width: 960, fontFamily: 'NotoKR, Inter, sans-serif', color: C.text}}>
           {variant === 'fill' ? (
             <>
-              {wordLine(SAMPLE[0].en, 118, progress)}
-              <div style={{marginTop: 50, fontSize: 84, fontWeight: 700, lineHeight: 1.28, color: 'rgba(255,255,255,0.92)', textShadow: '0 3px 18px rgba(0,0,0,0.5)'}}>{SAMPLE[0].ko}</div>
+              {wordLine(en, sizeFor(en).en, progress)}
+              <div style={{marginTop: 54, fontSize: sizeFor(en).ko, fontWeight: 700, lineHeight: 1.28, color: 'rgba(255,255,255,0.92)', textShadow: '0 3px 18px rgba(0,0,0,0.5)'}}>{ko}</div>
             </>
           ) : (
             SAMPLE.map((g, i) => (
