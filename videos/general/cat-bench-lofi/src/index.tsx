@@ -11,6 +11,7 @@ import {GlassMock2, GLASS2_DEFAULTS} from './GlassMock2';
 import {MockScroll, SCROLL_DEFAULTS} from './MockScroll';
 import {ScrollLyric, SCROLL_FRAMES} from './ScrollLyric';
 import {SingleMock, SINGLE_DEFAULTS} from './SingleMock';
+import {SingleLyric} from './SingleLyric';
 
 registerRoot(() => (
   <>
@@ -22,6 +23,7 @@ registerRoot(() => (
     <Composition id="ScrollLyric" component={ScrollLyric} durationInFrames={SCROLL_FRAMES} fps={FPS} width={W} height={H} />
     <Composition id="ScrollLyricWide" component={ScrollLyric} durationInFrames={SCROLL_FRAMES} fps={FPS} width={1920} height={1080} defaultProps={{layout: 'wide' as const}} />
     <Composition id="SingleMock" component={SingleMock} durationInFrames={1} fps={FPS} width={1920} height={1080} defaultProps={SINGLE_DEFAULTS} />
+    <Composition id="SingleLyricWide" component={SingleLyric} durationInFrames={SCROLL_FRAMES} fps={FPS} width={1920} height={1080} />
  <Composition id="LyricZh" component={LyricZh} durationInFrames={Math.ceil(25.47 * 30)} fps={30} width={W} height={H} />
     <Composition id="MockZh" component={MockZh} durationInFrames={1} fps={FPS} width={W} height={H} defaultProps={ZH_DEFAULTS} />
     <Composition id="Mock" component={Mock} durationInFrames={1} fps={FPS} width={W} height={H} defaultProps={MOCK_DEFAULTS} />
