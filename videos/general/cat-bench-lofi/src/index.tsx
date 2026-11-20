@@ -13,6 +13,7 @@ import {ScrollLyric, SCROLL_FRAMES} from './ScrollLyric';
 import {SingleMock, SINGLE_DEFAULTS} from './SingleMock';
 import {SingleLyric} from './SingleLyric';
 import {CaptionMock, CAPTION_DEFAULTS} from './CaptionMock';
+import {CaptionMock43, CAPTION43_DEFAULTS} from './CaptionMock43';
 
 registerRoot(() => (
   <>
@@ -26,6 +27,7 @@ registerRoot(() => (
     <Composition id="SingleMock" component={SingleMock} durationInFrames={1} fps={FPS} width={1920} height={1080} defaultProps={SINGLE_DEFAULTS} />
     <Composition id="SingleLyricWide" component={SingleLyric} durationInFrames={SCROLL_FRAMES} fps={FPS} width={1920} height={1080} />
     <Composition id="CaptionMock" component={CaptionMock} durationInFrames={1} fps={FPS} width={1920} height={1080} defaultProps={CAPTION_DEFAULTS} />
+    <Composition id="CaptionMock43" component={CaptionMock43} durationInFrames={1} fps={FPS} width={1440} height={1080} defaultProps={CAPTION43_DEFAULTS} />
  <Composition id="LyricZh" component={LyricZh} durationInFrames={Math.ceil(25.47 * 30)} fps={30} width={W} height={H} />
     <Composition id="MockZh" component={MockZh} durationInFrames={1} fps={FPS} width={W} height={H} defaultProps={ZH_DEFAULTS} />
     <Composition id="Mock" component={Mock} durationInFrames={1} fps={FPS} width={W} height={H} defaultProps={MOCK_DEFAULTS} />
