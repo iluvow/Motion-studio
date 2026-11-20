@@ -4,8 +4,8 @@ import {H, SAFE, W} from './constants';
 import {SONG_DURATION, SONG_LINES} from './data/yoru_lines';
 
 /* ---- 값 모음 (여기서 조절) ---- */
-const LEAD = 0.1;                 // 줄이 시작되기 이만큼 먼저 스크롤을 시작
-const MOVE = 0.45;                // 스크롤 시간
+const LEAD = 0.16;                // 줄이 시작되기 이만큼 먼저 스크롤을 시작
+const MOVE = 0.7;                 // 스크롤 시간
 const ANCHOR = 235;               // 지금 줄의 위쪽 위치
 const WIDTH = W - 2 * SAFE.x;
 const EN_CUR = 120, EN_OTHER = 68;      // 영어 글자 크기 (지금 줄 / 나머지)
@@ -16,6 +16,8 @@ const OPACITY_BY_DIST = [1, 0.5, 0.28, 0.1];
 
 const clamp = (x: number, a = 0, b = 1) => Math.min(b, Math.max(a, x));
 const easeOut = (x: number) => 1 - Math.pow(1 - clamp(x), 3);
+/** 부드러운 이동: 출발할 때 천천히 가속하고(smoothstep) 끝에서 길게 감속(easeOut)하는 혼합 */
+const smooth = (x: number) => { x = clamp(x); return 0.6 * x * x * (3 - 2 * x) + 0.4 * (1 - Math.pow(1 - x, 3)); };
 const FONT = `@font-face{font-family:'MiSansLatin';font-weight:700;src:url('${staticFile('fonts/misans-latin/MiSansLatin-Bold.woff2')}') format('woff2');}
 @font-face{font-family:'SUIT';font-weight:700;src:url('${staticFile('fonts/suit/SUIT-Bold.otf')}') format('opentype');}`;
 
@@ -50,14 +52,15 @@ export const ScrollLyric: React.FC<{bg?: string}> = ({bg = 'store60.mp4'}) => {
   const L = SONG_LINES;
   // 줄마다 "지금 줄 정도" c (0~1): 시작 LEAD 전부터 MOVE 동안 올라가고, 다음 줄이 시작될 때 같은 속도로 내려간다
   const c = L.map((l, i) => {
-    const up = i === 0 ? 1 : easeOut((t - (l.start - LEAD)) / MOVE);
-    const down = i + 1 < L.length ? easeOut((t - (L[i + 1].start - LEAD)) / MOVE) : 0;
+    const up = i === 0 ? 1 : smooth((t - (l.start - LEAD)) / MOVE);
+    const down = i + 1 < L.length ? smooth((t - (L[i + 1].start - LEAD)) / MOVE) : 0;
     return clamp(up - down);
   });
   const focus = c.reduce((s, ci, i) => s + ci * i, 0);          // 연속적인 "지금 줄 번호"
   const size = (i: number) => EN_OTHER + (EN_CUR - EN_OTHER) * c[i];
   const koH = (i: number) => c[i] * (KO_SIZE * 1.3 + 22);
-  const height = (i: number) => enLines(L[i].en, size(i)) * size(i) * 1.12 + koH(i) + 34 + c[i] * 22;
+  const hEn = (i: number) => enLines(L[i].en, EN_OTHER) * EN_OTHER * 1.12 * (1 - c[i]) + enLines(L[i].en, EN_CUR) * EN_CUR * 1.12 * c[i];   // 줄 수가 바뀌어도 높이가 튀지 않게 섞는다
+  const height = (i: number) => hEn(i) + koH(i) + 34 + c[i] * 22;
   const top: number[] = [];
   L.reduce((y, _, i) => { top[i] = y; return y + height(i); }, 0);
   const focusTop = c.reduce((s, ci, i) => s + ci * top[i], 0);
