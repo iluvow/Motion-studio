@@ -15,6 +15,7 @@ import {SingleLyric} from './SingleLyric';
 import {CaptionMock, CAPTION_DEFAULTS} from './CaptionMock';
 import {CaptionMock43, CAPTION43_DEFAULTS} from './CaptionMock43';
 import {CaptionMock32, CAPTION32_DEFAULTS} from './CaptionMock32';
+import {CaptionMock1610, CAPTION1610_DEFAULTS} from './CaptionMock1610';
 
 registerRoot(() => (
   <>
@@ -30,6 +31,7 @@ registerRoot(() => (
     <Composition id="CaptionMock" component={CaptionMock} durationInFrames={1} fps={FPS} width={1920} height={1080} defaultProps={CAPTION_DEFAULTS} />
     <Composition id="CaptionMock43" component={CaptionMock43} durationInFrames={1} fps={FPS} width={1440} height={1080} defaultProps={CAPTION43_DEFAULTS} />
     <Composition id="CaptionMock32" component={CaptionMock32} durationInFrames={1} fps={FPS} width={1440} height={960} defaultProps={CAPTION32_DEFAULTS} />
+    <Composition id="CaptionMock1610" component={CaptionMock1610} durationInFrames={1} fps={FPS} width={1440} height={900} defaultProps={CAPTION1610_DEFAULTS} />
  <Composition id="LyricZh" component={LyricZh} durationInFrames={Math.ceil(25.47 * 30)} fps={30} width={W} height={H} />
     <Composition id="MockZh" component={MockZh} durationInFrames={1} fps={FPS} width={W} height={H} defaultProps={ZH_DEFAULTS} />
     <Composition id="Mock" component={Mock} durationInFrames={1} fps={FPS} width={W} height={H} defaultProps={MOCK_DEFAULTS} />
