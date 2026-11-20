@@ -6,7 +6,7 @@ import '@fontsource/pretendard/500.css';
 /** 16:10 (1440×900) 자막 시안 (스틸 전용): 글자에도 배경과 같은 결(입자)을 입힌다 */
 export type Caption1610Props = {bg: string; en: string; ko?: string; enSize?: number; koSize?: number; texture?: boolean};
 export const CAPTION1610_DEFAULTS: Caption1610Props = {bg: 'car1610_a.png', en: 'in the backseat', ko: '뒷좌석에서', texture: true};
-const AREA = {left: 1010, width: 400};
+const AREA = {left: 920, width: 480};
 
 export const CaptionMock1610: React.FC<Caption1610Props> = ({bg, en, ko, enSize = 54, koSize = 32, texture = true}) => (
   <AbsoluteFill style={{background: '#050507'}}>
