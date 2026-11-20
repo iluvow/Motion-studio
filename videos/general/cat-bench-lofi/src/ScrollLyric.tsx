@@ -4,7 +4,8 @@ import {H, SAFE, W} from './constants';
 import {SONG_DURATION, SONG_LINES} from './data/yoru_lines';
 
 /* ---- 값 모음 (여기서 조절) ---- */
-const LEAD = 0.16;                // 줄이 시작되기 이만큼 먼저 스크롤을 시작
+const LEAD = 0.12;                // 줄이 시작되기 이만큼 먼저 스크롤을 시작
+const SPRING_OMEGA = 16, SPRING_ZETA = 0.72;   // 스프링 세기 (클수록 빠름) / 감쇠 (작을수록 더 튕김)
 const MOVE = 0.7;                 // 스크롤 시간
 const ANCHOR = 235;               // 지금 줄의 위쪽 위치
 const WIDTH = W - 2 * SAFE.x;
@@ -50,20 +51,23 @@ export const ScrollLyric: React.FC<{bg?: string}> = ({bg = 'store60.mp4'}) => {
   if (!ready) return <AbsoluteFill style={{background: '#0b0d1a'}}><style>{FONT}</style></AbsoluteFill>;
 
   const L = SONG_LINES;
-  // 줄마다 "지금 줄 정도" c (0~1): 시작 LEAD 전부터 MOVE 동안 올라가고, 다음 줄이 시작될 때 같은 속도로 내려간다
-  const c = L.map((l, i) => {
-    const up = i === 0 ? 1 : smooth((t - (l.start - LEAD)) / MOVE);
-    const down = i + 1 < L.length ? smooth((t - (L[i + 1].start - LEAD)) / MOVE) : 0;
-    return clamp(up - down);
-  });
-  const focus = c.reduce((s, ci, i) => s + ci * i, 0);          // 연속적인 "지금 줄 번호"
+  // 스프링: 줄이 바뀔 때마다 "지금 줄 번호"가 용수철처럼 다음 번호로 튕겨 가서 안착한다 (슝~ 하고 지나가며 살짝 넘쳤다가 멈춤)
+  const springStep = (tau: number) => {
+    if (tau <= 0) return 0;
+    const z = SPRING_ZETA, w = SPRING_OMEGA, wd = w * Math.sqrt(1 - z * z);
+    return 1 - Math.exp(-z * w * tau) * (Math.cos(wd * tau) + (z / Math.sqrt(1 - z * z)) * Math.sin(wd * tau));
+  };
+  const f = L.reduce((s, l, i) => (i === 0 ? s : s + springStep(t - (l.start - LEAD))), 0);   // 각 단계가 +1 칸씩
+  const c = L.map((_, i) => clamp(1 - Math.abs(f - i)));
+  const focus = f;
   const size = (i: number) => EN_OTHER + (EN_CUR - EN_OTHER) * c[i];
   const koH = (i: number) => c[i] * (KO_SIZE * 1.3 + 22);
   const hEn = (i: number) => enLines(L[i].en, EN_OTHER) * EN_OTHER * 1.12 * (1 - c[i]) + enLines(L[i].en, EN_CUR) * EN_CUR * 1.12 * c[i];   // 줄 수가 바뀌어도 높이가 튀지 않게 섞는다
   const height = (i: number) => hEn(i) + koH(i) + 34 + c[i] * 22;
   const top: number[] = [];
   L.reduce((y, _, i) => { top[i] = y; return y + height(i); }, 0);
-  const focusTop = c.reduce((s, ci, i) => s + ci * top[i], 0);
+  const lo = Math.max(0, Math.min(L.length - 2, Math.floor(f)));
+  const focusTop = top[lo] + (top[lo + 1] - top[lo]) * (f - lo);      // 넘쳤다 돌아오는 구간도 끊김 없이 이어지게 선형으로 계산
   const shift = ANCHOR - focusTop;
 
   const opacityAt = (d: number) => {
