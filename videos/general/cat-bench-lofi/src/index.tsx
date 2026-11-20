@@ -19,6 +19,7 @@ registerRoot(() => (
     <Composition id="GlassMock2" component={GlassMock2} durationInFrames={1} fps={FPS} width={W} height={H} defaultProps={GLASS2_DEFAULTS} />
     <Composition id="MockScroll" component={MockScroll} durationInFrames={1} fps={FPS} width={W} height={H} defaultProps={SCROLL_DEFAULTS} />
     <Composition id="ScrollLyric" component={ScrollLyric} durationInFrames={SCROLL_FRAMES} fps={FPS} width={W} height={H} />
+    <Composition id="ScrollLyricWide" component={ScrollLyric} durationInFrames={SCROLL_FRAMES} fps={FPS} width={1920} height={1080} defaultProps={{layout: 'wide' as const}} />
  <Composition id="LyricZh" component={LyricZh} durationInFrames={Math.ceil(25.47 * 30)} fps={30} width={W} height={H} />
     <Composition id="MockZh" component={MockZh} durationInFrames={1} fps={FPS} width={W} height={H} defaultProps={ZH_DEFAULTS} />
     <Composition id="Mock" component={Mock} durationInFrames={1} fps={FPS} width={W} height={H} defaultProps={MOCK_DEFAULTS} />

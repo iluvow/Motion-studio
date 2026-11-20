@@ -7,10 +7,11 @@ import {SONG_DURATION, SONG_LINES} from './data/yoru_lines';
 const LEAD = 0.12;                // 줄이 시작되기 이만큼 먼저 스크롤을 시작
 const SPRING_OMEGA = 16, SPRING_ZETA = 0.72;   // 스프링 세기 (클수록 빠름) / 감쇠 (작을수록 더 튕김)
 const MOVE = 0.7;                 // 스크롤 시간
-const ANCHOR = 235;               // 지금 줄의 위쪽 위치
-const WIDTH = W - 2 * SAFE.x;
-const EN_CUR = 120, EN_OTHER = 68;      // 영어 글자 크기 (지금 줄 / 나머지)
-const KO_SIZE = 66;
+/** 화면 구성: portrait = 2:3 세로, wide = 16:9 가로 (가사는 하늘 쪽 오른쪽 영역에, 고양이는 왼쪽) */
+const LAYOUTS = {
+  portrait: {w: W, h: H, left: SAFE.x, width: W - 2 * SAFE.x, anchor: 235, enCur: 120, enOther: 68, ko: 66, bg: 'store60.mp4', overlay: true},
+  wide: {w: 1920, h: 1080, left: 890, width: 940, anchor: 165, enCur: 108, enOther: 60, ko: 60, bg: 'store_wide60.mp4', overlay: false},
+};
 const COLOR = '#FFFBF5';
 const POP = 0.08, POP_DECAY = 0.11;     // "Bang" 단어가 튀는 크기(8%)와 되돌아오는 시간
 const OPACITY_BY_DIST = [1, 0.5, 0.28, 0.1];
@@ -29,7 +30,7 @@ const wordW = (s: string) => {
   ctx.font = "700 100px 'MiSansLatin'";
   return ctx.measureText(s).width / 100;           // 글자 크기 1 기준 폭
 };
-const enLines = (text: string, size: number) => {
+const enLines = (text: string, size: number, WIDTH: number) => {
   let lines = 1, cur = 0;
   for (const w of text.split(' ')) {
     const ww = wordW(w + ' ') * size;
@@ -38,7 +39,9 @@ const enLines = (text: string, size: number) => {
   return lines;
 };
 
-export const ScrollLyric: React.FC<{bg?: string}> = ({bg = 'store60.mp4'}) => {
+export const ScrollLyric: React.FC<{layout?: 'portrait' | 'wide'; bg?: string}> = ({layout = 'portrait', bg}) => {
+  const LY = LAYOUTS[layout];
+  const WIDTH = LY.width, ANCHOR = LY.anchor, EN_CUR = LY.enCur, EN_OTHER = LY.enOther, KO_SIZE = LY.ko;
   const frame = useCurrentFrame();
   const {fps} = useVideoConfig();
   const t = frame / fps;
@@ -62,7 +65,7 @@ export const ScrollLyric: React.FC<{bg?: string}> = ({bg = 'store60.mp4'}) => {
   const focus = f;
   const size = (i: number) => EN_OTHER + (EN_CUR - EN_OTHER) * c[i];
   const koH = (i: number) => c[i] * (KO_SIZE * 1.3 + 22);
-  const hEn = (i: number) => enLines(L[i].en, EN_OTHER) * EN_OTHER * 1.12 * (1 - c[i]) + enLines(L[i].en, EN_CUR) * EN_CUR * 1.12 * c[i];   // 줄 수가 바뀌어도 높이가 튀지 않게 섞는다
+  const hEn = (i: number) => enLines(L[i].en, EN_OTHER, WIDTH) * EN_OTHER * 1.12 * (1 - c[i]) + enLines(L[i].en, EN_CUR, WIDTH) * EN_CUR * 1.12 * c[i];   // 줄 수가 바뀌어도 높이가 튀지 않게 섞는다
   const height = (i: number) => hEn(i) + koH(i) + 34 + c[i] * 22;
   const top: number[] = [];
   L.reduce((y, _, i) => { top[i] = y; return y + height(i); }, 0);
@@ -90,10 +93,10 @@ export const ScrollLyric: React.FC<{bg?: string}> = ({bg = 'store60.mp4'}) => {
     <AbsoluteFill style={{background: '#0b0d1a'}}>
       <style>{FONT}</style>
       <Audio src={staticFile('yoru.mp3')} />
-      <OffthreadVideo src={staticFile(bg)} muted style={{position: 'absolute', left: 0, top: 0, width: W, height: H}} />
-      <AbsoluteFill style={{background: 'linear-gradient(180deg, rgba(8,10,28,0.9) 0%, rgba(8,10,28,0.82) 34%, rgba(8,10,28,0.5) 48%, rgba(8,10,28,0) 58%)'}} />
-      <AbsoluteFill style={{background: 'linear-gradient(180deg, rgba(8,10,28,0) 76%, rgba(8,10,28,0.95) 88%)'}} />
-      <div style={{position: 'absolute', left: SAFE.x, top: 0, width: WIDTH, textShadow: '0 6px 36px rgba(6,8,24,0.5)'}}>
+      <OffthreadVideo src={staticFile(bg ?? LY.bg)} muted style={{position: 'absolute', left: 0, top: 0, width: LY.w, height: LY.h}} />
+      {LY.overlay && <AbsoluteFill style={{background: 'linear-gradient(180deg, rgba(8,10,28,0.9) 0%, rgba(8,10,28,0.82) 34%, rgba(8,10,28,0.5) 48%, rgba(8,10,28,0) 58%)'}} />}
+      {LY.overlay && <AbsoluteFill style={{background: 'linear-gradient(180deg, rgba(8,10,28,0) 76%, rgba(8,10,28,0.95) 88%)'}} />}
+      <div style={{position: 'absolute', left: LY.left, top: 0, width: WIDTH, textShadow: '0 6px 36px rgba(6,8,24,0.5)'}}>
         {L.map((l, i) => {
           const d = Math.abs(i - focus);
           if (d > 3.2) return null;
