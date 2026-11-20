@@ -33,7 +33,7 @@ export const SingleLyric: React.FC = () => {
   let a = 0;
   for (let i = 0; i < L.length; i++) if (t >= L[i].start - LEAD) a = i;
   const p = a === 0 ? 1 : spring(t - (L[a].start - LEAD));          // 새 줄이 자리 잡은 정도 (0→1, 살짝 넘쳤다 돌아옴)
-  const endFade = t > SONG_DURATION - 1.2 ? clamp((SONG_DURATION - t) / 1.2) : 1;
+  const endFade = t > SONG_DURATION - 0.5 ? clamp((SONG_DURATION - t) / 0.5) : 1;
 
   const Line: React.FC<{i: number; style: React.CSSProperties}> = ({i, style}) => {
     const l = L[i], s = sizeFor(l.en);
