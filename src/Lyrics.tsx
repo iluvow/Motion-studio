@@ -2,7 +2,7 @@ import {AbsoluteFill, Audio, Easing, OffthreadVideo, Sequence, interpolate, stat
 import {CUES} from './lyrics';
 
 const CLIP = 5; // 배경 클립 길이(초)
-export const PINK = false; // 분홍 틴트 on/off
+export const TINT = true; // 파란 틴트 on/off
 const FONT = "'InterL','NSK',sans-serif";
 
 const Background = () => {
@@ -52,8 +52,8 @@ export const Lyrics = () => (
     <style>{`@font-face{font-family:'InterL';src:url('${staticFile('inter.woff2')}') format('woff2');}@font-face{font-family:'NSK';src:url('${staticFile('nsk.woff2')}') format('woff2');}`}</style>
     <Background />
     <AbsoluteFill style={{background: 'radial-gradient(ellipse at center, rgba(0,0,0,0) 40%, rgba(0,0,0,0.4) 100%)'}} />
-    {PINK && <AbsoluteFill style={{background: 'rgb(255,120,200)', mixBlendMode: 'soft-light', opacity: 0.85}} />}
-    {PINK && <AbsoluteFill style={{background: 'rgb(255,150,210)', mixBlendMode: 'screen', opacity: 0.18}} />}
+    {TINT && <AbsoluteFill style={{background: 'rgb(70,120,255)', mixBlendMode: 'soft-light', opacity: 0.14}} />}
+    {TINT && <AbsoluteFill style={{background: 'radial-gradient(ellipse at center, rgba(40,90,255,0) 45%, rgba(40,90,255,0.16) 100%)', mixBlendMode: 'screen'}} />}
     <Grain />
     <Caption />
     <Audio src={staticFile('song.m4a')} />
