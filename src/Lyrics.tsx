@@ -6,21 +6,11 @@ const FONT = "'InterL','NSK',sans-serif";
 
 const Background = () => {
   const frame = useCurrentFrame();
-  const {fps, durationInFrames} = useVideoConfig();
-  const t = frame / fps;
-  // 컷마다 줌/위치를 바꿔 장면 전환 느낌
-  const idx = CUES.reduce((a, c, i) => (t >= c.start ? i : a), 0);
-  const into = t - CUES[idx].start;
-  const zoom = 1.12 + (idx % 3) * 0.08 + into * 0.02;
-  const shiftX = ((idx * 37) % 5 - 2) * 18;
-  const segs = Math.ceil(durationInFrames / (CLIP * fps)) + 1;
+  const {fps} = useVideoConfig();
+  const zoom = 1.1 + (frame / fps) * 0.012; // 천천히 밀고 들어가는 느낌
   return (
-    <AbsoluteFill style={{background: '#000', filter: 'brightness(1.0) contrast(1.08) saturate(0.75) blur(1.4px)', transform: `translateX(${shiftX}px) scale(${zoom})`}}>
-      {Array.from({length: segs}).map((_, i) => (
-        <Sequence key={i} from={Math.round(i * CLIP * fps)} durationInFrames={Math.round(CLIP * fps)}>
-          <OffthreadVideo muted src={staticFile(i % 2 ? 'bg_rev.mp4' : 'bg.mp4')} style={{width: '100%', height: '100%', objectFit: 'cover'}} />
-        </Sequence>
-      ))}
+    <AbsoluteFill style={{background: '#000', filter: 'brightness(1.0) contrast(1.08) saturate(0.75) blur(1.2px)', transform: `scale(${zoom})`}}>
+      <OffthreadVideo muted src={staticFile('bg_slow.mp4')} style={{width: '100%', height: '100%', objectFit: 'cover'}} />
     </AbsoluteFill>
   );
 };
@@ -46,10 +36,12 @@ const Caption = () => {
   const c = CUES[idx];
   const end = idx + 1 < CUES.length ? CUES[idx + 1].start : durationInFrames / fps;
   const op = interpolate(t, [c.start, c.start + 0.12, end - 0.1, end], [0, 1, 1, 0], {easing: Easing.out(Easing.quad), extrapolateLeft: 'clamp', extrapolateRight: 'clamp'});
+  const glow = '0 0 4px rgba(150,110,255,0.95), 0 0 12px rgba(130,90,255,0.85), 0 0 26px rgba(110,70,255,0.6), 0 2px 3px rgba(20,0,60,0.9)';
+  const first = idx === 0;
   return (
     <AbsoluteFill style={{justifyContent: 'center', alignItems: 'center', opacity: op, padding: '0 120px', textAlign: 'center'}}>
-      <div style={{fontFamily: FONT, fontWeight: 400, color: '#fff', fontSize: 66, lineHeight: 1.25, letterSpacing: -1}}>{c.en}</div>
-      <div style={{fontFamily: FONT, fontWeight: 400, color: 'rgba(255,255,255,0.6)', fontSize: 34, marginTop: 26}}>{c.ko}</div>
+      <div style={{fontFamily: FONT, fontWeight: 400, color: '#fff', fontSize: 46, lineHeight: 1.3, letterSpacing: first ? 14 : 0.5, textShadow: glow}}>{c.en}</div>
+      <div style={{fontFamily: FONT, fontWeight: 400, color: '#fff', fontSize: 40, marginTop: 8, textShadow: glow}}>{c.ko}</div>
     </AbsoluteFill>
   );
 };
