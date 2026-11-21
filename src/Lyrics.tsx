@@ -15,7 +15,7 @@ const Background = () => {
   const shiftX = ((idx * 37) % 5 - 2) * 18;
   const segs = Math.ceil(durationInFrames / (CLIP * fps)) + 1;
   return (
-    <AbsoluteFill style={{background: '#000', filter: 'brightness(0.62) contrast(1.15) saturate(0.6) blur(1.4px)', transform: `translateX(${shiftX}px) scale(${zoom})`}}>
+    <AbsoluteFill style={{background: '#000', filter: 'brightness(1.0) contrast(1.08) saturate(0.75) blur(1.4px)', transform: `translateX(${shiftX}px) scale(${zoom})`}}>
       {Array.from({length: segs}).map((_, i) => (
         <Sequence key={i} from={Math.round(i * CLIP * fps)} durationInFrames={Math.round(CLIP * fps)}>
           <OffthreadVideo muted src={staticFile(i % 2 ? 'bg_rev.mp4' : 'bg.mp4')} style={{width: '100%', height: '100%', objectFit: 'cover'}} />
@@ -47,9 +47,9 @@ const Caption = () => {
   const end = idx + 1 < CUES.length ? CUES[idx + 1].start : durationInFrames / fps;
   const op = interpolate(t, [c.start, c.start + 0.12, end - 0.1, end], [0, 1, 1, 0], {easing: Easing.out(Easing.quad), extrapolateLeft: 'clamp', extrapolateRight: 'clamp'});
   return (
-    <AbsoluteFill style={{justifyContent: 'center', alignItems: 'center', opacity: op, padding: '0 90px', textAlign: 'center'}}>
-      <div style={{fontFamily: FONT, fontWeight: 400, color: '#fff', fontSize: 74, lineHeight: 1.25, letterSpacing: -1}}>{c.en}</div>
-      <div style={{fontFamily: FONT, fontWeight: 400, color: 'rgba(255,255,255,0.6)', fontSize: 38, marginTop: 26}}>{c.ko}</div>
+    <AbsoluteFill style={{justifyContent: 'center', alignItems: 'center', opacity: op, padding: '0 120px', textAlign: 'center'}}>
+      <div style={{fontFamily: FONT, fontWeight: 400, color: '#fff', fontSize: 66, lineHeight: 1.25, letterSpacing: -1}}>{c.en}</div>
+      <div style={{fontFamily: FONT, fontWeight: 400, color: 'rgba(255,255,255,0.6)', fontSize: 34, marginTop: 26}}>{c.ko}</div>
     </AbsoluteFill>
   );
 };
@@ -58,7 +58,7 @@ export const Lyrics = () => (
   <AbsoluteFill style={{background: '#000'}}>
     <style>{`@font-face{font-family:'InterL';src:url('${staticFile('inter.woff2')}') format('woff2');}@font-face{font-family:'NSK';src:url('${staticFile('nsk.woff2')}') format('woff2');}`}</style>
     <Background />
-    <AbsoluteFill style={{background: 'radial-gradient(ellipse at center, rgba(0,0,0,0) 40%, rgba(0,0,0,0.65) 100%)'}} />
+    <AbsoluteFill style={{background: 'radial-gradient(ellipse at center, rgba(0,0,0,0) 40%, rgba(0,0,0,0.4) 100%)'}} />
     <Grain />
     <Caption />
     <Audio src={staticFile('song.m4a')} />
