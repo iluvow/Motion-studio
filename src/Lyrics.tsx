@@ -52,8 +52,8 @@ export const Lyrics = () => (
     <style>{`@font-face{font-family:'InterL';src:url('${staticFile('inter.woff2')}') format('woff2');}@font-face{font-family:'NSK';src:url('${staticFile('nsk.woff2')}') format('woff2');}`}</style>
     <Background />
     <AbsoluteFill style={{background: 'radial-gradient(ellipse at center, rgba(0,0,0,0) 40%, rgba(0,0,0,0.4) 100%)'}} />
-    {TINT && <AbsoluteFill style={{background: 'rgb(70,120,255)', mixBlendMode: 'soft-light', opacity: 0.14}} />}
-    {TINT && <AbsoluteFill style={{background: 'radial-gradient(ellipse at center, rgba(40,90,255,0) 45%, rgba(40,90,255,0.16) 100%)', mixBlendMode: 'screen'}} />}
+    {TINT && <AbsoluteFill style={{background: 'rgb(70,120,255)', mixBlendMode: 'soft-light', opacity: 0.27}} />}
+    {TINT && <AbsoluteFill style={{background: 'radial-gradient(ellipse at center, rgba(40,90,255,0) 45%, rgba(40,90,255,0.22) 100%)', mixBlendMode: 'screen'}} />}
     <Grain />
     <Caption />
     <Audio src={staticFile('song.m4a')} />
