@@ -2,6 +2,7 @@ import {AbsoluteFill, Audio, Easing, OffthreadVideo, Sequence, interpolate, stat
 import {CUES} from './lyrics';
 
 const CLIP = 5; // 배경 클립 길이(초)
+export const PINK = false; // 분홍 틴트 on/off
 const FONT = "'InterL','NSK',sans-serif";
 
 const Background = () => {
@@ -36,12 +37,12 @@ const Caption = () => {
   const c = CUES[idx];
   const end = idx + 1 < CUES.length ? CUES[idx + 1].start : durationInFrames / fps;
   const op = interpolate(t, [c.start, c.start + 0.12, end - 0.1, end], [0, 1, 1, 0], {easing: Easing.out(Easing.quad), extrapolateLeft: 'clamp', extrapolateRight: 'clamp'});
-  const glow = '0 0 4px rgba(150,110,255,0.95), 0 0 12px rgba(130,90,255,0.85), 0 0 26px rgba(110,70,255,0.6), 0 2px 3px rgba(20,0,60,0.9)';
+  const glow = '0 0 4px rgba(90,170,255,0.95), 0 0 12px rgba(50,130,255,0.85), 0 0 26px rgba(30,100,255,0.6), 0 2px 3px rgba(0,20,70,0.9)';
   const first = idx === 0;
   return (
     <AbsoluteFill style={{justifyContent: 'center', alignItems: 'center', opacity: op, padding: '0 120px', textAlign: 'center'}}>
-      <div style={{fontFamily: FONT, fontWeight: 400, color: '#fff', fontSize: 46, lineHeight: 1.3, letterSpacing: first ? 14 : 0.5, textShadow: glow}}>{c.en}</div>
-      <div style={{fontFamily: FONT, fontWeight: 400, color: '#fff', fontSize: 40, marginTop: 8, textShadow: glow}}>{c.ko}</div>
+      <div style={{fontFamily: FONT, fontWeight: 400, color: '#e8f3ff', fontSize: 46, lineHeight: 1.3, letterSpacing: first ? 14 : 0.5, textShadow: glow}}>{c.en}</div>
+      <div style={{fontFamily: FONT, fontWeight: 400, color: '#e8f3ff', fontSize: 40, marginTop: 8, textShadow: glow}}>{c.ko}</div>
     </AbsoluteFill>
   );
 };
@@ -51,6 +52,8 @@ export const Lyrics = () => (
     <style>{`@font-face{font-family:'InterL';src:url('${staticFile('inter.woff2')}') format('woff2');}@font-face{font-family:'NSK';src:url('${staticFile('nsk.woff2')}') format('woff2');}`}</style>
     <Background />
     <AbsoluteFill style={{background: 'radial-gradient(ellipse at center, rgba(0,0,0,0) 40%, rgba(0,0,0,0.4) 100%)'}} />
+    {PINK && <AbsoluteFill style={{background: 'rgb(255,120,200)', mixBlendMode: 'soft-light', opacity: 0.85}} />}
+    {PINK && <AbsoluteFill style={{background: 'rgb(255,150,210)', mixBlendMode: 'screen', opacity: 0.18}} />}
     <Grain />
     <Caption />
     <Audio src={staticFile('song.m4a')} />
