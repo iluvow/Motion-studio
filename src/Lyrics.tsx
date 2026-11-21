@@ -39,9 +39,19 @@ const Caption = () => {
   const op = interpolate(t, [c.start, c.start + 0.12, end - 0.1, end], [0, 1, 1, 0], {easing: Easing.out(Easing.quad), extrapolateLeft: 'clamp', extrapolateRight: 'clamp'});
   const glow = '0 0 4px rgba(90,170,255,0.95), 0 0 12px rgba(50,130,255,0.85), 0 0 26px rgba(30,100,255,0.6), 0 2px 3px rgba(0,20,70,0.9)';
   const first = idx === 0;
+  const words = first ? c.en.split('-') : c.en.split(' ');
+  const span = end - c.start;
+  const appear = Math.min(span * 0.75, first ? 2.0 : 1.1); // 단어가 다 나오는 데 걸리는 시간
   return (
     <AbsoluteFill style={{justifyContent: 'center', alignItems: 'center', opacity: op, padding: '0 120px', textAlign: 'center'}}>
-      <div style={{fontFamily: FONT, fontWeight: 400, color: '#e8f3ff', fontSize: 46, lineHeight: 1.3, letterSpacing: first ? 14 : 0.5, textShadow: glow}}>{c.en}</div>
+      <div style={{fontFamily: FONT, fontWeight: 400, color: '#e8f3ff', fontSize: 46, lineHeight: 1.3, textShadow: glow, display: 'flex', gap: first ? 22 : 13, justifyContent: 'center', flexWrap: 'wrap'}}>
+        {words.map((w, i) => {
+          const wt = c.start + (i * appear) / words.length;
+          const wo = interpolate(t, [wt, wt + 0.09], [0, 1], {extrapolateLeft: 'clamp', extrapolateRight: 'clamp'});
+          const sc = interpolate(t, [wt, wt + 0.12], [0.88, 1], {easing: Easing.out(Easing.quad), extrapolateLeft: 'clamp', extrapolateRight: 'clamp'});
+          return <span key={i} style={{opacity: wo, transform: `scale(${sc})`, display: 'inline-block'}}>{w}</span>;
+        })}
+      </div>
       <div style={{fontFamily: FONT, fontWeight: 400, color: '#e8f3ff', fontSize: 40, marginTop: 8, textShadow: glow}}>{c.ko}</div>
     </AbsoluteFill>
   );
