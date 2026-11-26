@@ -6,7 +6,7 @@ import {AbsoluteFill, Audio, Img, staticFile, useCurrentFrame, useVideoConfig} f
 // - 작은 문장: 노래 음절 단위로 글자가 늘어남, 박자마다 색 반전
 // - 큰 단어 -> 작은 문장으로 넘어갈 때: 글자가 ~10배로 확대된 상태에서 4프레임 안에 원래 크기로
 export type Line = {en: string; ko: string; sub?: string; start: number; big?: boolean; beatLen?: number; steps?: [number, number][]; pieces?: {t: number; en: string; ko: string}[]};
-export type SongData = {name: string; duration: number; beats: number[]; beatStep?: number; lines: Line[]};
+export type SongData = {name: string; duration: number; beats: number[]; beatStep?: number; audioEnd?: number; endTime?: number; lines: Line[]};
 export type InvertProps = {
   name: string; // public/data/<name>.json
   audio: string; // public/ 아래 음원 파일명
@@ -22,6 +22,7 @@ export type InvertProps = {
   dogMoves: {line: number; x: number; y: number}[]; // 가사 줄이 시작할 때 강아지1이 (x,y)=화면 비율 위치로 이동
   accent: string; // 포인트 색(반짝이·줄 시작 섬광). 빈 문자열이면 사용 안 함
   split: boolean; // 틱톡식 청록/빨강 어긋남(글자 가장자리)
+  dog2Lines: number[]; // 눈 레이저 강아지가 나오는 가사 줄 번호
   dogs: boolean; // 밈 강아지 (public/dog1.png 회전, dog2.png 하이라이트 줄에서 등장)
   warpAmp: number; // idle 왜곡 세기(px, 1080 기준). 0이면 끔
   warpStretch: number; // 유지되는 동안 늘어남 정도(0~1)
@@ -57,7 +58,7 @@ const wordsOf = (en: string) => {
   return out;
 };
 
-export const Invert = ({data, audio, colors, glow, bigH, smallH, sparkle, zoomIn, showKo, pieceMode, accent, split, dogs, dogMoves, warpAmp, warpStretch}: InvertProps) => {
+export const Invert = ({data, audio, colors, glow, bigH, smallH, sparkle, zoomIn, showKo, pieceMode, accent, split, dogs, dog2Lines, dogMoves, warpAmp, warpStretch}: InvertProps) => {
   const frame = useCurrentFrame();
   const {fps, durationInFrames, width, height} = useVideoConfig();
   if (!data) return null;
@@ -84,7 +85,7 @@ export const Invert = ({data, audio, colors, glow, bigH, smallH, sparkle, zoomIn
     const kk = height / 1080;
     return (
       <AbsoluteFill style={{background: bgs}}>
-        <style>{`@font-face{font-family:'BHS';src:url('${staticFile('bhs.woff2')}') format('woff2');}@font-face{font-family:'NSK';font-weight:400;src:url('${staticFile('nsk.woff2')}') format('woff2');}@font-face{font-family:'Anton';src:url('${staticFile('anton.woff2')}') format('woff2');}`}</style>
+        <style>{`@font-face{font-family:'BHS';src:url('${staticFile('bhs.woff2')}') format('woff2');}@font-face{font-family:'NSKB';font-weight:900;src:url('${staticFile('nskb_kyun.woff2')}') format('woff2');unicode-range:U+D065;}@font-face{font-family:'NSKB';font-weight:900;src:url('${staticFile('nskb_chat.woff2')}') format('woff2');unicode-range:U+CC73;}@font-face{font-family:'NSK';font-weight:400;src:url('${staticFile('nsk.woff2')}') format('woff2');}@font-face{font-family:'Anton';src:url('${staticFile('anton.woff2')}') format('woff2');}`}</style>
         {dogs && (() => {
           const kk2 = height / 1080;
           const outline = [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([a, b]) => `drop-shadow(${a * 4 * kk2}px ${b * 4 * kk2}px 0 #fff)`).join(' ');
@@ -115,8 +116,8 @@ export const Invert = ({data, audio, colors, glow, bigH, smallH, sparkle, zoomIn
           if (!gap) {
             let li = -1;
             for (let i = 0; i < L.length; i++) if (t >= L[i].start) li = i;
-            if (li >= 0 && L[li].big) {
-              let j = li; while (j > 0 && L[j - 1].big) j--;
+            if (li >= 0 && dog2Lines.includes(li)) {
+              const j = li;
               const sc2 = outCubic(Math.min(1, (t - L[j].start) / 0.3));
               const shake = Math.sin((t / bt) * Math.PI) * 5;
               imgs.push(<Img key="d2" src={staticFile('dog2.png')} style={{position: 'absolute', left: '15%', top: '78%', height: height * 0.3, transform: `translate(-50%,-50%) rotate(${shake}deg) scale(${sc2 * bounce})`, filter: outline, opacity: 0.9 + 0.1 * Math.sin(t * 12)}} />);
@@ -142,7 +143,7 @@ export const Invert = ({data, audio, colors, glow, bigH, smallH, sparkle, zoomIn
               </svg>
               <div style={{filter: warpAmp > 0 ? 'url(#warp)' : undefined, transform: `scale(${sx},${sy})`, transformOrigin: '50% 100%', textAlign: 'center'}}>
                 <div style={{fontFamily: "'Anton','BHS',sans-serif", color: fgc, fontSize: fs, lineHeight: 1, letterSpacing: -fs * 0.01, whiteSpace: 'nowrap', WebkitTextStroke: `${6 * kk}px ${fgc}`, textShadow: split ? `${-4 * kk}px 0 rgba(37,244,238,0.9), ${4 * kk}px 0 rgba(254,44,85,0.9)` : `${4 * kk}px ${4 * kk}px 0 ${rgb(fgc, 0.28)}`}}>{word}</div>
-                {showKo && <div style={{fontFamily: "'BHS','NSK',sans-serif", color: fgc, fontSize: height * 0.105, lineHeight: 1, marginTop: height * 0.05, textShadow: split ? `${-3 * kk}px 0 rgba(37,244,238,0.9), ${3 * kk}px 0 rgba(254,44,85,0.9)` : `${3 * kk}px ${3 * kk}px 0 ${rgb(fgc, 0.28)}`}}>{cur.ko}</div>}
+                {showKo && <div style={{fontFamily: "'BHS','NSKB','NSK',sans-serif", color: fgc, fontSize: height * 0.105, lineHeight: 1, marginTop: height * 0.05, textShadow: split ? `${-3 * kk}px 0 rgba(37,244,238,0.9), ${3 * kk}px 0 rgba(254,44,85,0.9)` : `${3 * kk}px ${3 * kk}px 0 ${rgb(fgc, 0.28)}`}}>{cur.ko}</div>}
               </div>
             </AbsoluteFill>
           );
@@ -157,7 +158,7 @@ export const Invert = ({data, audio, colors, glow, bigH, smallH, sparkle, zoomIn
           const f = Math.max(0, 1 - (t - cur.t) / 0.14);
           return isLineStart && f > 0 ? <AbsoluteFill style={{background: accent, opacity: 0.32 * f, mixBlendMode: 'screen'}} /> : null;
         })()}
-        <Audio src={staticFile(audio)} />
+        <Audio src={staticFile(audio)} endAt={data.audioEnd ? Math.round(data.audioEnd * fps) : undefined} volume={(f) => { const e = data.audioEnd ? data.audioEnd * fps : Infinity; return Math.max(0, Math.min(1, (e - f) / (0.12 * fps))); }} />
       </AbsoluteFill>
     );
   }
