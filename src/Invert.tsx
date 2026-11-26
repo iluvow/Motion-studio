@@ -20,6 +20,7 @@ export type InvertProps = {
   showKo: boolean; // 한글 해석 표시
   pieceMode: boolean; // 한 단어(조각)씩 크게 보여주기 (lines[].pieces 필요)
   dogMoves: {line: number; x: number; y: number}[]; // 가사 줄이 시작할 때 강아지1이 (x,y)=화면 비율 위치로 이동
+  split: boolean; // 틱톡식 청록/빨강 어긋남(글자 가장자리)
   dogs: boolean; // 밈 강아지 (public/dog1.png 회전, dog2.png 하이라이트 줄에서 등장)
   warpAmp: number; // idle 왜곡 세기(px, 1080 기준). 0이면 끔
   warpStretch: number; // 유지되는 동안 늘어남 정도(0~1)
@@ -55,7 +56,7 @@ const wordsOf = (en: string) => {
   return out;
 };
 
-export const Invert = ({data, audio, colors, glow, bigH, smallH, sparkle, zoomIn, showKo, pieceMode, dogs, dogMoves, warpAmp, warpStretch}: InvertProps) => {
+export const Invert = ({data, audio, colors, glow, bigH, smallH, sparkle, zoomIn, showKo, pieceMode, split, dogs, dogMoves, warpAmp, warpStretch}: InvertProps) => {
   const frame = useCurrentFrame();
   const {fps, durationInFrames, width, height} = useVideoConfig();
   if (!data) return null;
@@ -139,8 +140,8 @@ export const Invert = ({data, audio, colors, glow, bigH, smallH, sparkle, zoomIn
                 </filter>
               </svg>
               <div style={{filter: warpAmp > 0 ? 'url(#warp)' : undefined, transform: `scale(${sx},${sy})`, transformOrigin: '50% 100%', textAlign: 'center'}}>
-                <div style={{fontFamily: "'Anton','BHS',sans-serif", color: fgc, fontSize: fs, lineHeight: 1, letterSpacing: -fs * 0.01, whiteSpace: 'nowrap', WebkitTextStroke: `${6 * kk}px ${fgc}`, textShadow: `${4 * kk}px ${4 * kk}px 0 ${rgb(fgc, 0.28)}`}}>{word}</div>
-                {showKo && <div style={{fontFamily: "'BHS','NSK',sans-serif", color: fgc, fontSize: height * 0.105, lineHeight: 1, marginTop: height * 0.05, textShadow: `${3 * kk}px ${3 * kk}px 0 ${rgb(fgc, 0.28)}`}}>{cur.ko}</div>}
+                <div style={{fontFamily: "'Anton','BHS',sans-serif", color: fgc, fontSize: fs, lineHeight: 1, letterSpacing: -fs * 0.01, whiteSpace: 'nowrap', WebkitTextStroke: `${6 * kk}px ${fgc}`, textShadow: split ? `${-4 * kk}px 0 rgba(37,244,238,0.9), ${4 * kk}px 0 rgba(254,44,85,0.9)` : `${4 * kk}px ${4 * kk}px 0 ${rgb(fgc, 0.28)}`}}>{word}</div>
+                {showKo && <div style={{fontFamily: "'BHS','NSK',sans-serif", color: fgc, fontSize: height * 0.105, lineHeight: 1, marginTop: height * 0.05, textShadow: split ? `${-3 * kk}px 0 rgba(37,244,238,0.9), ${3 * kk}px 0 rgba(254,44,85,0.9)` : `${3 * kk}px ${3 * kk}px 0 ${rgb(fgc, 0.28)}`}}>{cur.ko}</div>}
               </div>
             </AbsoluteFill>
           );
