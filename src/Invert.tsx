@@ -83,6 +83,45 @@ export const Invert = ({data, audio, colors, glow, bigH, smallH, sparkle, zoomIn
     return (
       <AbsoluteFill style={{background: bgs}}>
         <style>{`@font-face{font-family:'BHS';src:url('${staticFile('bhs.woff2')}') format('woff2');}@font-face{font-family:'NSK';font-weight:400;src:url('${staticFile('nsk.woff2')}') format('woff2');}@font-face{font-family:'Anton';src:url('${staticFile('anton.woff2')}') format('woff2');}`}</style>
+        {dogs && (() => {
+          const kk2 = height / 1080;
+          const outline = [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([a, b]) => `drop-shadow(${a * 4 * kk2}px ${b * 4 * kk2}px 0 #fff)`).join(' ');
+          const gap = !cur || t >= lastEnd; // 가사 없는 구간(인트로/아웃트로): 가운데에 크게
+          const bp = ((t - (data.beats[0] || 0)) / bt) % 1;
+          const bpp = bp < 0 ? bp + 1 : bp;
+          const bounce = 1 + 0.035 * Math.pow(Math.cos(Math.PI * bpp), 2); // 박자에 맞춘 부드러운 숨쉬기
+          const outBack = (x: number) => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); };
+          const outCubic = (x: number) => 1 - Math.pow(1 - x, 3);
+          const imgs: JSX.Element[] = [];
+          // 강아지1 경로: 가운데(인트로) -> 오른쪽 아래(가사 시작) -> dogMoves 순서대로
+          const wps = [{t: firstT, x: 0.86, y: 0.79, s: 0.27, d: 0.7}, ...dogMoves.map((m) => ({t: L[m.line].start, x: m.x, y: m.y, s: 0.27, d: 0.65}))];
+          const inOut = (x: number) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
+          let pos = {x: 0.5, y: 0.5, s: 0.55};
+          let extraSpin = 0;
+          if (!gap) {
+            for (const w of wps) {
+              if (t < w.t) break;
+              const q = Math.min(1, (t - w.t) / w.d);
+              const e = inOut(q), c = inOut(q); // 튕김 없이 부드럽게 가속·감속
+              if (q < 1) { pos = {x: pos.x + (w.x - pos.x) * e, y: pos.y + (w.y - pos.y) * e, s: pos.s + (w.s - pos.s) * c}; extraSpin += 360 * c; break; }
+              pos = {x: w.x, y: w.y, s: w.s}; extraSpin += 360; // 이동할 때마다 한 바퀴 반 더 돌며 날아감
+            }
+          }
+          const ang = (t / (bt * 4)) * 360 + extraSpin;
+          imgs.push(<Img key="d1" src={staticFile('dog1.png')} style={{position: 'absolute', left: `${pos.x * 100}%`, top: `${pos.y * 100}%`, height: height * pos.s, transform: `translate(-50%,-50%) rotate(${ang}deg) scale(${bounce})`, filter: outline}} />);
+          // 하이라이트(big) 줄: 강아지2 등장
+          if (!gap) {
+            let li = -1;
+            for (let i = 0; i < L.length; i++) if (t >= L[i].start) li = i;
+            if (li >= 0 && L[li].big) {
+              let j = li; while (j > 0 && L[j - 1].big) j--;
+              const sc2 = outCubic(Math.min(1, (t - L[j].start) / 0.3));
+              const shake = Math.sin((t / bt) * Math.PI) * 5;
+              imgs.push(<Img key="d2" src={staticFile('dog2.png')} style={{position: 'absolute', left: '15%', top: '78%', height: height * 0.3, transform: `translate(-50%,-50%) rotate(${shake}deg) scale(${sc2 * bounce})`, filter: outline, opacity: 0.9 + 0.1 * Math.sin(t * 12)}} />);
+            }
+          }
+          return <AbsoluteFill>{imgs}</AbsoluteFill>;
+        })()}
         {cur && (() => {
           // 레퍼런스에서 측정한 idle: 조각이 유지되는 동안 위치마다 다르게 천천히 일렁이며 늘어남
           const since = t - cur.t;
@@ -105,43 +144,6 @@ export const Invert = ({data, audio, colors, glow, bigH, smallH, sparkle, zoomIn
               </div>
             </AbsoluteFill>
           );
-        })()}
-        {dogs && (() => {
-          const kk2 = height / 1080;
-          const outline = [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([a, b]) => `drop-shadow(${a * 4 * kk2}px ${b * 4 * kk2}px 0 #fff)`).join(' ');
-          const gap = !cur || t >= lastEnd; // 가사 없는 구간(인트로/아웃트로): 가운데에 크게
-          const bp = ((t - (data.beats[0] || 0)) / bt) % 1;
-          const bounce = 1 + 0.07 * Math.exp(-(bp < 0 ? bp + 1 : bp) * 6);
-          const outBack = (x: number) => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); };
-          const outCubic = (x: number) => 1 - Math.pow(1 - x, 3);
-          const imgs: JSX.Element[] = [];
-          // 강아지1 경로: 가운데(인트로) -> 오른쪽 아래(가사 시작) -> dogMoves 순서대로
-          const wps = [{t: firstT, x: 0.86, y: 0.79, s: 0.27, d: 0.42}, ...dogMoves.map((m) => ({t: L[m.line].start, x: m.x, y: m.y, s: 0.27, d: 0.45}))];
-          let pos = {x: 0.5, y: 0.5, s: 0.55};
-          let extraSpin = 0;
-          if (!gap) {
-            for (const w of wps) {
-              if (t < w.t) break;
-              const q = Math.min(1, (t - w.t) / w.d);
-              const e = outBack(q), c = outCubic(q);
-              if (q < 1) { pos = {x: pos.x + (w.x - pos.x) * e, y: pos.y + (w.y - pos.y) * e, s: pos.s + (w.s - pos.s) * c}; extraSpin += 540 * c; break; }
-              pos = {x: w.x, y: w.y, s: w.s}; extraSpin += 540; // 이동할 때마다 한 바퀴 반 더 돌며 날아감
-            }
-          }
-          const ang = (t / (bt * 4)) * 360 + extraSpin;
-          imgs.push(<Img key="d1" src={staticFile('dog1.png')} style={{position: 'absolute', left: `${pos.x * 100}%`, top: `${pos.y * 100}%`, height: height * pos.s, transform: `translate(-50%,-50%) rotate(${ang}deg) scale(${bounce})`, filter: outline}} />);
-          // 하이라이트(big) 줄: 강아지2 등장
-          if (!gap) {
-            let li = -1;
-            for (let i = 0; i < L.length; i++) if (t >= L[i].start) li = i;
-            if (li >= 0 && L[li].big) {
-              let j = li; while (j > 0 && L[j - 1].big) j--;
-              const sc2 = outBack(Math.min(1, (t - L[j].start) / 0.18));
-              const shake = Math.sin((t / bt) * Math.PI * 2) * 7;
-              imgs.push(<Img key="d2" src={staticFile('dog2.png')} style={{position: 'absolute', left: '15%', top: '78%', height: height * 0.3, transform: `translate(-50%,-50%) rotate(${shake}deg) scale(${sc2 * bounce})`, filter: outline, opacity: 0.85 + 0.15 * Math.sin(t * 40)}} />);
-            }
-          }
-          return <AbsoluteFill>{imgs}</AbsoluteFill>;
         })()}
         {sparkle && cur && (
           <div style={{position: 'absolute', left: '50%', bottom: height * 0.045, transform: 'translateX(-50%)'}}>
