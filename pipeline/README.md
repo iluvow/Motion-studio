@@ -26,7 +26,8 @@ bash pipeline/setup.sh
 ```bash
 npx remotion render src/index.ts Invert out/<이름>.mp4 --props='{"name":"<이름>","audio":"<이름>.m4a"}'
 ```
-props 옵션: `colors`(두 색, 기본 검정+분홍), `glow`(밝은 색 그라데이션), `flip`(event|beat|none), `position`(center|alternate),
-`wordByWord`, `rgbSplit`, `fontSize`, `width`/`height`(기본 1080x1920).
+props 옵션: `colors`(두 색), `glow`(밝은 색 그라데이션), `flip`(event|none), `position`(center|cycle),
+`reveal`(type 글자 하나씩|word 단어 하나씩|none), `rgbSplit`, `sparkle`(하단 반짝이), `bigTransition`(거대한 첫 글자 전환),
+`fontSize`(높이 1080 기준), `width`/`height`(기본 1440x1080, 4:3).
 
 배경 영상이 있는 스타일은 `src/Lyrics.tsx`(PC방 영상용)을 참고.
