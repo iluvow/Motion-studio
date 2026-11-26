@@ -66,7 +66,15 @@ export const Invert = ({data, audio, colors, glow, bigH, smallH, sparkle, zoomIn
     const all = L.flatMap((l) => l.pieces || []).sort((a, b) => a.t - b.t);
     const n = all.filter((p) => p.t <= t).length;
     const cur = n > 0 ? all[n - 1] : null;
-    const ph = Math.max(n - 1, 0);
+    const bt = data.beatStep || 0.468;
+    const lastLine = L[L.length - 1];
+    const lastEnd = lastLine.start + (lastLine.beatLen || 2) * bt + 0.15;
+    const firstT = all.length ? all[0].t : 0;
+    // 인트로/아웃트로(가사 없는 구간)도 박자마다 반전
+    const introBeats = data.beats.filter((b) => b > 0.05 && b < firstT - 0.05);
+    const outroBeats = data.beats.filter((b) => b > lastEnd + 0.05);
+    const evs = [...introBeats, ...all.map((p) => p.t), ...outroBeats].sort((a, b) => a - b);
+    const ph = evs.filter((e) => e <= t + 1e-4).length;
     const bgc = colors[ph % 2];
     const fgc = colors[(ph + 1) % 2];
     const bgs = glow && lum(bgc) > 0.35 ? `radial-gradient(ellipse at center, ${mixWhite(bgc, 0.45)} 0%, ${bgc} 78%)` : bgc;
@@ -102,35 +110,56 @@ export const Invert = ({data, audio, colors, glow, bigH, smallH, sparkle, zoomIn
           );
         })()}
         {dogs && (() => {
-          const beat = data.beatStep || 0.468;
           const kk2 = height / 1080;
           const outline = [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([a, b]) => `drop-shadow(${a * 4 * kk2}px ${b * 4 * kk2}px 0 #fff)`).join(' ');
-          const last = L[L.length - 1];
-          const lastEnd = last.start + (last.beatLen || 2) * beat + 0.15;
-          const intro = !cur || t >= lastEnd; // 가사 없는 구간: 가운데에 크게
-          const bp = ((t - (data.beats[0] || 0)) / beat) % 1; // 박자 안 위치 0~1
-          const bounce = 1 + 0.07 * Math.exp(-bp * 6);
-          const ang = (t / (beat * 4)) * 360; // 4박에 한 바퀴 (평면 회전)
-          const size1 = height * (intro ? 0.55 : 0.27);
-          const cx = intro ? 0.5 : 0.86, cy = intro ? 0.5 : 0.79;
-          // 하이라이트(big) 줄 구간에서 dog2 등장
-          let li = -1;
-          for (let i = 0; i < L.length; i++) if (t >= L[i].start) li = i;
-          const hot = !intro && li >= 0 && !!L[li].big;
-          let runStart = 0;
-          if (hot) { let j = li; while (j > 0 && L[j - 1].big) j--; runStart = L[j].start; }
-          const since2 = t - runStart;
-          const pop = hot ? Math.min(1, since2 / 0.18) : 0;
-          const back = (x: number) => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); };
-          const sc2 = hot ? back(pop) : 0;
-          const shake = Math.sin((t / beat) * Math.PI * 2) * 7;
-          const flick = 0.85 + 0.15 * Math.sin(t * 40);
+          const gap = !cur || t >= lastEnd; // 가사 없는 구간(인트로/아웃트로)
+          const r0 = !cur ? 0 : lastEnd; // 그 구간의 시작
+          const bp = ((t - (data.beats[0] || 0)) / bt) % 1;
+          const bounce = 1 + 0.07 * Math.exp(-(bp < 0 ? bp + 1 : bp) * 6);
+          const outBack = (x: number) => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); };
+          const outCubic = (x: number) => 1 - Math.pow(1 - x, 3);
+          const imgs: JSX.Element[] = [];
+          let flash = 0;
+          let shakeX = 0, shakeY = 0;
+          if (gap && !(cur && t >= lastEnd && false)) {
+            // 인트로/아웃트로: 박자마다 컷 전환 (강아지1 회전 <-> 눈 레이저 강아지2), 컷마다 흰 섬광 + 펀치 줌 + 흔들림
+            const cuts = [r0, ...data.beats.filter((b) => b > r0 + 0.05 && (cur ? true : b < firstT - 0.05))];
+            const ci = cuts.filter((c) => c <= t + 1e-4).length - 1;
+            const since = t - cuts[Math.max(ci, 0)];
+            const isDog2 = ci % 2 === 1;
+            const punch = 1 + 0.28 * Math.exp(-since * 14);
+            flash = Math.max(0, 1 - since * 18) * 0.85;
+            shakeX = (((frame * 37) % 11) - 5) * 1.6 * kk2 * Math.exp(-since * 6);
+            shakeY = (((frame * 53) % 9) - 4) * 1.6 * kk2 * Math.exp(-since * 6);
+            // 가사가 시작하는 순간 날아가기 (인트로 마지막 컷 구간에서만, 아웃트로엔 없음)
+            if (isDog2) {
+              imgs.push(<Img key="d2" src={staticFile('dog2.png')} style={{position: 'absolute', left: '50%', top: '50%', height: height * 1.25, transform: `translate(-50%,-50%) rotate(${Math.sin(t * 30) * 2}deg) scale(${punch})`, filter: outline, opacity: 0.88 + 0.12 * Math.sin(t * 50)}} />);
+            } else {
+              const ang = (t / (bt * 2)) * 360; // 인트로는 2박에 한 바퀴로 빠르게
+              imgs.push(<Img key="d1" src={staticFile('dog1.png')} style={{position: 'absolute', left: '50%', top: '50%', height: height * 0.78, transform: `translate(-50%,-50%) rotate(${ang}deg) scale(${punch})`, filter: outline}} />);
+            }
+          } else {
+            // 가사 구간: 강아지1은 구석에서 회전, 하이라이트 줄에서 강아지2 등장
+            const fly = Math.min(1, Math.max(0, (t - firstT) / 0.42)); // 가운데 -> 구석으로 이동
+            const e = outBack(fly);
+            const cx = 0.5 + (0.86 - 0.5) * e, cy = 0.5 + (0.79 - 0.5) * e;
+            const size1 = height * (0.78 + (0.27 - 0.78) * outCubic(fly));
+            const ang = (t / (bt * 4)) * 360 + (1 - fly) * 540; // 날아가는 동안 더 빠르게 회전
+            imgs.push(<Img key="d1" src={staticFile('dog1.png')} style={{position: 'absolute', left: `${cx * 100}%`, top: `${cy * 100}%`, height: size1, transform: `translate(-50%,-50%) rotate(${ang}deg) scale(${bounce})`, filter: outline}} />);
+            let li = -1;
+            for (let i = 0; i < L.length; i++) if (t >= L[i].start) li = i;
+            const hot = li >= 0 && !!L[li].big;
+            if (hot) {
+              let j = li; while (j > 0 && L[j - 1].big) j--;
+              const sc2 = outBack(Math.min(1, (t - L[j].start) / 0.18));
+              const shake = Math.sin((t / bt) * Math.PI * 2) * 7;
+              imgs.push(<Img key="d2" src={staticFile('dog2.png')} style={{position: 'absolute', left: '15%', top: '78%', height: height * 0.3, transform: `translate(-50%,-50%) rotate(${shake}deg) scale(${sc2 * bounce})`, filter: outline, opacity: 0.85 + 0.15 * Math.sin(t * 40)}} />);
+            }
+          }
           return (
             <>
-              {hot && (
-                <Img src={staticFile('dog2.png')} style={{position: 'absolute', left: '15%', top: '78%', height: height * 0.3, transform: `translate(-50%,-50%) rotate(${shake}deg) scale(${sc2 * bounce})`, filter: outline, opacity: flick}} />
-              )}
-              <Img src={staticFile('dog1.png')} style={{position: 'absolute', left: `${cx * 100}%`, top: `${cy * 100}%`, height: size1, transform: `translate(-50%,-50%) rotate(${ang}deg) scale(${bounce})`, filter: outline}} />
+              <AbsoluteFill style={{transform: `translate(${shakeX}px,${shakeY}px)`}}>{imgs}</AbsoluteFill>
+              {flash > 0 && <AbsoluteFill style={{background: '#fff', opacity: flash}} />}
             </>
           );
         })()}
