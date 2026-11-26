@@ -20,6 +20,7 @@ export type InvertProps = {
   showKo: boolean; // 한글 해석 표시
   pieceMode: boolean; // 한 단어(조각)씩 크게 보여주기 (lines[].pieces 필요)
   dogMoves: {line: number; x: number; y: number}[]; // 가사 줄이 시작할 때 강아지1이 (x,y)=화면 비율 위치로 이동
+  accent: string; // 포인트 색(반짝이·줄 시작 섬광). 빈 문자열이면 사용 안 함
   split: boolean; // 틱톡식 청록/빨강 어긋남(글자 가장자리)
   dogs: boolean; // 밈 강아지 (public/dog1.png 회전, dog2.png 하이라이트 줄에서 등장)
   warpAmp: number; // idle 왜곡 세기(px, 1080 기준). 0이면 끔
@@ -56,7 +57,7 @@ const wordsOf = (en: string) => {
   return out;
 };
 
-export const Invert = ({data, audio, colors, glow, bigH, smallH, sparkle, zoomIn, showKo, pieceMode, split, dogs, dogMoves, warpAmp, warpStretch}: InvertProps) => {
+export const Invert = ({data, audio, colors, glow, bigH, smallH, sparkle, zoomIn, showKo, pieceMode, accent, split, dogs, dogMoves, warpAmp, warpStretch}: InvertProps) => {
   const frame = useCurrentFrame();
   const {fps, durationInFrames, width, height} = useVideoConfig();
   if (!data) return null;
@@ -148,9 +149,14 @@ export const Invert = ({data, audio, colors, glow, bigH, smallH, sparkle, zoomIn
         })()}
         {sparkle && cur && (
           <div style={{position: 'absolute', left: '50%', bottom: height * 0.045, transform: 'translateX(-50%)'}}>
-            <Star size={30 * kk} color={fgc} filled={ph % 2 === 0} />
+            <Star size={30 * kk} color={accent || fgc} filled={ph % 2 === 0} />
           </div>
         )}
+        {accent && cur && (() => {
+          const isLineStart = L.some((l) => l.pieces && l.pieces[0] && Math.abs(l.pieces[0].t - cur.t) < 1e-3);
+          const f = Math.max(0, 1 - (t - cur.t) / 0.14);
+          return isLineStart && f > 0 ? <AbsoluteFill style={{background: accent, opacity: 0.32 * f, mixBlendMode: 'screen'}} /> : null;
+        })()}
         <Audio src={staticFile(audio)} />
       </AbsoluteFill>
     );
