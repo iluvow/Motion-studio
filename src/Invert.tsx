@@ -19,10 +19,9 @@ export type InvertProps = {
   zoomIn: boolean; // 큰 단어 -> 작은 문장 전환 줌
   showKo: boolean; // 한글 해석 표시
   pieceMode: boolean; // 한 단어(조각)씩 크게 보여주기 (lines[].pieces 필요)
-  dogMoves: {line: number; x: number; y: number}[]; // 가사 줄이 시작할 때 강아지1이 (x,y)=화면 비율 위치로 이동
   accent: string; // 포인트 색(반짝이·줄 시작 섬광). 빈 문자열이면 사용 안 함
   split: boolean; // 틱톡식 청록/빨강 어긋남(글자 가장자리)
-  dog2Lines: number[]; // 눈 레이저 강아지가 나오는 가사 줄 번호
+  dogSegs: {img: string; from: number; to: number; x: number; y: number; size: number; spin?: boolean}[]; // 구간(가사 줄 from~to)마다 담당 강아지 1마리
   dogs: boolean; // 밈 강아지 (public/dog1.png 회전, dog2.png 하이라이트 줄에서 등장)
   warpAmp: number; // idle 왜곡 세기(px, 1080 기준). 0이면 끔
   warpStretch: number; // 유지되는 동안 늘어남 정도(0~1)
@@ -58,7 +57,7 @@ const wordsOf = (en: string) => {
   return out;
 };
 
-export const Invert = ({data, audio, colors, glow, bigH, smallH, sparkle, zoomIn, showKo, pieceMode, accent, split, dogs, dog2Lines, dogMoves, warpAmp, warpStretch}: InvertProps) => {
+export const Invert = ({data, audio, colors, glow, bigH, smallH, sparkle, zoomIn, showKo, pieceMode, accent, split, dogs, dogSegs, warpAmp, warpStretch}: InvertProps) => {
   const frame = useCurrentFrame();
   const {fps, durationInFrames, width, height} = useVideoConfig();
   if (!data) return null;
@@ -72,7 +71,7 @@ export const Invert = ({data, audio, colors, glow, bigH, smallH, sparkle, zoomIn
     const cur = n > 0 ? all[n - 1] : null;
     const bt = data.beatStep || 0.468;
     const lastLine = L[L.length - 1];
-    const lastEnd = lastLine.start + (lastLine.beatLen || 2) * bt + 0.15;
+    const lastEnd = data.endTime ? data.endTime + 1 : lastLine.start + (lastLine.beatLen || 2) * bt + 0.15; // endTime이 있으면 아웃트로 없이 바로 끝
     const firstT = all.length ? all[0].t : 0;
     const ph = Math.max(n - 1, 0);
     const bgc = colors[ph % 2];
@@ -89,39 +88,37 @@ export const Invert = ({data, audio, colors, glow, bigH, smallH, sparkle, zoomIn
         {dogs && (() => {
           const kk2 = height / 1080;
           const outline = [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([a, b]) => `drop-shadow(${a * 4 * kk2}px ${b * 4 * kk2}px 0 #fff)`).join(' ');
-          const gap = !cur || t >= lastEnd; // 가사 없는 구간(인트로/아웃트로): 가운데에 크게
+          const gap = !cur || t >= lastEnd; // 가사 없는 구간(인트로): 셰퍼드가 가운데에서 돔
           const bp = ((t - (data.beats[0] || 0)) / bt) % 1;
           const bpp = bp < 0 ? bp + 1 : bp;
-          const bounce = 1 + 0.035 * Math.pow(Math.cos(Math.PI * bpp), 2); // 박자에 맞춘 부드러운 숨쉬기
-          const outBack = (x: number) => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); };
-          const outCubic = (x: number) => 1 - Math.pow(1 - x, 3);
-          const imgs: JSX.Element[] = [];
-          // 강아지1 경로: 가운데(인트로) -> 오른쪽 아래(가사 시작) -> dogMoves 순서대로
-          const wps = [{t: firstT, x: 0.86, y: 0.79, s: 0.27, d: 0.7}, ...dogMoves.map((m) => ({t: L[m.line].start, x: m.x, y: m.y, s: 0.27, d: 0.65}))];
+          const bounce = 1 + 0.03 * Math.pow(Math.cos(Math.PI * bpp), 2); // 박자에 맞춘 부드러운 숨쉬기
           const inOut = (x: number) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
-          let pos = {x: 0.5, y: 0.5, s: 0.55};
-          let extraSpin = 0;
-          if (!gap) {
-            for (const w of wps) {
-              if (t < w.t) break;
-              const q = Math.min(1, (t - w.t) / w.d);
-              const e = inOut(q), c = inOut(q); // 튕김 없이 부드럽게 가속·감속
-              if (q < 1) { pos = {x: pos.x + (w.x - pos.x) * e, y: pos.y + (w.y - pos.y) * e, s: pos.s + (w.s - pos.s) * c}; extraSpin += 360 * c; break; }
-              pos = {x: w.x, y: w.y, s: w.s}; extraSpin += 360; // 이동할 때마다 한 바퀴 반 더 돌며 날아감
-            }
-          }
-          const ang = (t / (bt * 4)) * 360 + extraSpin;
-          imgs.push(<Img key="d1" src={staticFile('dog1.png')} style={{position: 'absolute', left: `${pos.x * 100}%`, top: `${pos.y * 100}%`, height: height * pos.s, transform: `translate(-50%,-50%) rotate(${ang}deg) scale(${bounce})`, filter: outline}} />);
-          // 하이라이트(big) 줄: 강아지2 등장
-          if (!gap) {
-            let li = -1;
-            for (let i = 0; i < L.length; i++) if (t >= L[i].start) li = i;
-            if (li >= 0 && dog2Lines.includes(li)) {
-              const j = li;
-              const sc2 = outCubic(Math.min(1, (t - L[j].start) / 0.3));
-              const shake = Math.sin((t / bt) * Math.PI) * 5;
-              imgs.push(<Img key="d2" src={staticFile('dog2.png')} style={{position: 'absolute', left: '15%', top: '78%', height: height * 0.3, transform: `translate(-50%,-50%) rotate(${shake}deg) scale(${sc2 * bounce})`, filter: outline, opacity: 0.9 + 0.1 * Math.sin(t * 12)}} />);
-            }
+          const imgs: JSX.Element[] = [];
+          const endT = data.endTime || data.duration;
+          if (gap) {
+            const ang = (t / (bt * 4)) * 360;
+            imgs.push(<Img key="intro" src={staticFile('dog1.png')} style={{position: 'absolute', left: '50%', top: '50%', height: height * 0.55, transform: `translate(-50%,-50%) rotate(${ang}deg) scale(${bounce})`, filter: outline}} />);
+          } else {
+            dogSegs.forEach((sg, si) => {
+              const tIn = L[sg.from].start;
+              const tOut = sg.to + 1 < L.length ? L[sg.to + 1].start : endT;
+              if (t < tIn || t > tOut) return;
+              // 첫 구간은 인트로(가운데)에서 구석으로 날아오고, 나머지는 아래에서 슬라이드 인
+              const first = si === 0;
+              const p = Math.min(1, (t - tIn) / (first ? 0.7 : 0.45));
+              const q = Math.min(1, Math.max(0, (t - (tOut - 0.45)) / 0.45));
+              let x = sg.x, y = sg.y, sz = sg.size;
+              let extra = 0;
+              if (first) {
+                const e = inOut(p);
+                x = 0.5 + (sg.x - 0.5) * e; y = 0.5 + (sg.y - 0.5) * e; sz = 0.55 + (sg.size - 0.55) * e; extra = 360 * e;
+              } else {
+                y = sg.y + 0.32 * (1 - inOut(p));
+              }
+              y += 0.32 * inOut(q) * (si === dogSegs.length - 1 ? 0 : 1); // 마지막 구간은 영상 끝까지 유지
+              const ang = sg.spin ? (t / (bt * 4)) * 360 + extra : Math.sin((t / bt) * Math.PI) * 3;
+              imgs.push(<Img key={si} src={staticFile(sg.img)} style={{position: 'absolute', left: `${x * 100}%`, top: `${y * 100}%`, height: height * sz, transform: `translate(-50%,-50%) rotate(${ang}deg) scale(${bounce})`, filter: outline}} />);
+            });
           }
           return <AbsoluteFill>{imgs}</AbsoluteFill>;
         })()}
