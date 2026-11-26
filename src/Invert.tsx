@@ -124,7 +124,7 @@ export const Invert = ({data, audio, colors, glow, bigH, smallH, sparkle, zoomIn
           }
           return <AbsoluteFill>{imgs}</AbsoluteFill>;
         })()}
-        {cur && (() => {
+        {cur && t < lastEnd && (() => {
           // 레퍼런스에서 측정한 idle: 조각이 유지되는 동안 위치마다 다르게 천천히 일렁이며 늘어남
           const since = t - cur.t;
           const p = Math.min(since / 0.9, 1);
@@ -147,7 +147,7 @@ export const Invert = ({data, audio, colors, glow, bigH, smallH, sparkle, zoomIn
             </AbsoluteFill>
           );
         })()}
-        {sparkle && cur && (
+        {sparkle && cur && t < lastEnd && (
           <div style={{position: 'absolute', left: '50%', bottom: height * 0.045, transform: 'translateX(-50%)'}}>
             <Star size={30 * kk} color={accent || fgc} filled={ph % 2 === 0} />
           </div>
