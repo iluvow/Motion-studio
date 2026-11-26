@@ -1,12 +1,12 @@
-import {AbsoluteFill, Audio, staticFile, useCurrentFrame, useVideoConfig} from 'remotion';
+import {AbsoluteFill, Audio, Img, staticFile, useCurrentFrame, useVideoConfig} from 'remotion';
 
 // 레퍼런스 규칙을 그대로 옮긴 템플릿
 // - 모든 글자는 가로·세로 정중앙 (위치 이동 없음)
 // - 큰 단어: 항상 같은 높이(화면 높이 x bigH), 한 번에 한 단어, 단어가 바뀔 때만 색 반전
 // - 작은 문장: 노래 음절 단위로 글자가 늘어남, 박자마다 색 반전
 // - 큰 단어 -> 작은 문장으로 넘어갈 때: 글자가 ~10배로 확대된 상태에서 4프레임 안에 원래 크기로
-export type Line = {en: string; ko: string; sub?: string; start: number; big?: boolean; steps?: [number, number][]; pieces?: {t: number; en: string; ko: string}[]};
-export type SongData = {name: string; duration: number; beats: number[]; lines: Line[]};
+export type Line = {en: string; ko: string; sub?: string; start: number; big?: boolean; beatLen?: number; steps?: [number, number][]; pieces?: {t: number; en: string; ko: string}[]};
+export type SongData = {name: string; duration: number; beats: number[]; beatStep?: number; lines: Line[]};
 export type InvertProps = {
   name: string; // public/data/<name>.json
   audio: string; // public/ 아래 음원 파일명
@@ -19,6 +19,7 @@ export type InvertProps = {
   zoomIn: boolean; // 큰 단어 -> 작은 문장 전환 줌
   showKo: boolean; // 한글 해석 표시
   pieceMode: boolean; // 한 단어(조각)씩 크게 보여주기 (lines[].pieces 필요)
+  dogs: boolean; // 밈 강아지 (public/dog1.png 회전, dog2.png 하이라이트 줄에서 등장)
   warpAmp: number; // idle 왜곡 세기(px, 1080 기준). 0이면 끔
   warpStretch: number; // 유지되는 동안 늘어남 정도(0~1)
   data?: SongData;
@@ -53,7 +54,7 @@ const wordsOf = (en: string) => {
   return out;
 };
 
-export const Invert = ({data, audio, colors, glow, bigH, smallH, sparkle, zoomIn, showKo, pieceMode, warpAmp, warpStretch}: InvertProps) => {
+export const Invert = ({data, audio, colors, glow, bigH, smallH, sparkle, zoomIn, showKo, pieceMode, dogs, warpAmp, warpStretch}: InvertProps) => {
   const frame = useCurrentFrame();
   const {fps, durationInFrames, width, height} = useVideoConfig();
   if (!data) return null;
@@ -98,6 +99,39 @@ export const Invert = ({data, audio, colors, glow, bigH, smallH, sparkle, zoomIn
                 {showKo && <div style={{fontFamily: "'BHS','NSK',sans-serif", color: fgc, fontSize: height * 0.105, lineHeight: 1, marginTop: height * 0.05, textShadow: `${3 * kk}px ${3 * kk}px 0 ${rgb(fgc, 0.28)}`}}>{cur.ko}</div>}
               </div>
             </AbsoluteFill>
+          );
+        })()}
+        {dogs && (() => {
+          const beat = data.beatStep || 0.468;
+          const kk2 = height / 1080;
+          const outline = [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([a, b]) => `drop-shadow(${a * 4 * kk2}px ${b * 4 * kk2}px 0 #fff)`).join(' ');
+          const last = L[L.length - 1];
+          const lastEnd = last.start + (last.beatLen || 2) * beat + 0.15;
+          const intro = !cur || t >= lastEnd; // 가사 없는 구간: 가운데에 크게
+          const bp = ((t - (data.beats[0] || 0)) / beat) % 1; // 박자 안 위치 0~1
+          const bounce = 1 + 0.07 * Math.exp(-bp * 6);
+          const ang = (t / (beat * 4)) * 360; // 4박에 한 바퀴 (평면 회전)
+          const size1 = height * (intro ? 0.55 : 0.27);
+          const cx = intro ? 0.5 : 0.86, cy = intro ? 0.5 : 0.79;
+          // 하이라이트(big) 줄 구간에서 dog2 등장
+          let li = -1;
+          for (let i = 0; i < L.length; i++) if (t >= L[i].start) li = i;
+          const hot = !intro && li >= 0 && !!L[li].big;
+          let runStart = 0;
+          if (hot) { let j = li; while (j > 0 && L[j - 1].big) j--; runStart = L[j].start; }
+          const since2 = t - runStart;
+          const pop = hot ? Math.min(1, since2 / 0.18) : 0;
+          const back = (x: number) => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); };
+          const sc2 = hot ? back(pop) : 0;
+          const shake = Math.sin((t / beat) * Math.PI * 2) * 7;
+          const flick = 0.85 + 0.15 * Math.sin(t * 40);
+          return (
+            <>
+              {hot && (
+                <Img src={staticFile('dog2.png')} style={{position: 'absolute', left: '15%', top: '78%', height: height * 0.3, transform: `translate(-50%,-50%) rotate(${shake}deg) scale(${sc2 * bounce})`, filter: outline, opacity: flick}} />
+              )}
+              <Img src={staticFile('dog1.png')} style={{position: 'absolute', left: `${cx * 100}%`, top: `${cy * 100}%`, height: size1, transform: `translate(-50%,-50%) rotate(${ang}deg) scale(${bounce})`, filter: outline}} />
+            </>
           );
         })()}
         {sparkle && cur && (
