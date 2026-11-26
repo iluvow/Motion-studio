@@ -26,8 +26,16 @@ bash pipeline/setup.sh
 ```bash
 npx remotion render src/index.ts Invert out/<이름>.mp4 --props='{"name":"<이름>","audio":"<이름>.m4a"}'
 ```
-props 옵션: `colors`(두 색), `glow`(밝은 색 그라데이션), `flip`(event|none), `position`(center|cycle),
-`reveal`(type 글자 하나씩|word 단어 하나씩|none), `rgbSplit`, `sparkle`(하단 반짝이), `bigTransition`(거대한 첫 글자 전환),
-`fontSize`(높이 1080 기준), `width`/`height`(기본 1440x1080, 4:3).
+props 옵션: `colors`(두 색), `glow`(밝은 색 중앙 그라데이션), `bigH`(큰 단어 높이, 기본 0.42), `smallH`(작은 문장 크기, 기본 0.072),
+`sparkle`, `zoomIn`(큰 단어→작은 문장 줌 전환), `showKo`(한글 해석), `width`/`height`(기본 1440x1080, 4:3).
+레퍼런스 규칙: 글자는 항상 정중앙, 큰 단어는 높이 고정, 작은 문장은 음절 단위로 늘어남, 박자마다 반전.
 
 배경 영상이 있는 스타일은 `src/Lyrics.tsx`(PC방 영상용)을 참고.
+
+## 노래를 whisper가 못 알아들을 때 (일본어 로마자 가사 등)
+보컬 분리(`.work/<이름>/sep/htdemucs/full/vocals.wav`)가 있으면 음절 수 x 박자 격자로 싱크:
+```bash
+.venv/bin/python pipeline/fit_moras.py <vocals.wav> data/<이름>_lyrics.txt <이름> --sections 12,7,6 --unit <16분음표초> --fixed-t0 <시작초> --bars 7,5,5 --mult 1,2,2
+```
+- `--unit` = 60/BPM/4 (BPM 1%만 틀려도 30초에 0.3초 어긋나니 후보 BPM을 비교해서 고르세요)
+- 시작 시각(`--fixed-t0`)은 보컬 onset 일치도 점수와 마지막 음절이 보컬 끝과 맞는지로 정함
