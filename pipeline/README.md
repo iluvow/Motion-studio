@@ -11,6 +11,8 @@ bash pipeline/setup.sh
 - 음원: `public/<이름>.m4a` (mp4에서 추출: `ffmpeg -i in.mp4 -vn -c:a aac public/<이름>.m4a`)
 - 가사: `data/<이름>_lyrics.txt` — 줄 묶음을 빈 줄로 구분, 묶음은 `원어 / 해석 / (선택) 보충`
 
+- 후렴처럼 강한 줄은 영어 줄 맨 앞에 `!`를 붙이면 **큰 단어 모드**(굵은 대문자 한 단어씩, 박자마다 색 반전)
+
 ## 2. 분석 (박자 + 가사 타이밍)
 ```bash
 .venv/bin/python pipeline/analyze.py public/<이름>.m4a data/<이름>_lyrics.txt <이름> [--bpm 80] [--lang en]
@@ -24,7 +26,7 @@ bash pipeline/setup.sh
 ```bash
 npx remotion render src/index.ts Invert out/<이름>.mp4 --props='{"name":"<이름>","audio":"<이름>.m4a"}'
 ```
-props 옵션: `colors`(두 색), `flip`(line|beat|none), `position`(center|alternate),
+props 옵션: `colors`(두 색, 기본 검정+분홍), `glow`(밝은 색 그라데이션), `flip`(event|beat|none), `position`(center|alternate),
 `wordByWord`, `rgbSplit`, `fontSize`, `width`/`height`(기본 1080x1920).
 
 배경 영상이 있는 스타일은 `src/Lyrics.tsx`(PC방 영상용)을 참고.

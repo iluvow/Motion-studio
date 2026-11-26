@@ -5,8 +5,8 @@ import {DURATION_SEC, FPS} from './lyrics';
 
 const invertDefaults: InvertProps = {
   name: 'test', audio: 'song.m4a', width: 1080, height: 1920,
-  colors: ['#000000', '#ffffff'], flip: 'line', position: 'alternate',
-  wordByWord: false, rgbSplit: true, fontSize: 44,
+  colors: ['#000000', '#ff8fe8'], flip: 'event', position: 'alternate',
+  wordByWord: true, rgbSplit: true, fontSize: 44, glow: true,
 };
 
 export const Root = () => (

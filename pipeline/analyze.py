@@ -5,6 +5,7 @@
   python pipeline/analyze.py <audio> <lyrics.txt> <name> [--lang en] [--bars-fallback]
 
 lyrics.txt 형식: 줄 묶음을 빈 줄로 구분. 묶음 = 원어 줄 / 해석 줄 / (선택) 보충 줄
+  원어 줄 맨 앞에 ! 를 붙이면 '큰 단어 모드'(굵은 대문자 한 단어씩, 박자마다)
   Less than three, you love me
   <3, 넌 날 사랑해
 """
@@ -23,7 +24,7 @@ work = os.path.join(ROOT, '.work', a.name); os.makedirs(work, exist_ok=True)
 
 # 1. 가사 파싱
 blocks = [b.strip().split('\n') for b in re.split(r'\n\s*\n', open(a.lyrics, encoding='utf-8').read().strip())]
-lines = [{'en': b[0].strip(), 'ko': b[1].strip() if len(b) > 1 else '', 'sub': b[2].strip() if len(b) > 2 else ''} for b in blocks]
+lines = [{'en': b[0].strip().lstrip('!').strip(), 'big': b[0].strip().startswith('!'), 'ko': b[1].strip() if len(b) > 1 else '', 'sub': b[2].strip() if len(b) > 2 else ''} for b in blocks]
 
 # 2. 오디오 -> wav
 wav = os.path.join(work, 'full.wav')

@@ -350,7 +350,8 @@
    "en": "Less than three, you love me",
    "ko": "<3, 넌 날 사랑해",
    "sub": "",
-   "start": 2.345
+   "start": 2.345,
+   "big": true
   },
   {
    "en": "Typing out my fantasy",
@@ -374,7 +375,8 @@
    "en": "Less than three, O-M-G",
    "ko": "<3, O-M-G",
    "sub": "",
-   "start": 8.62
+   "start": 8.62,
+   "big": true
   },
   {
    "en": "Love computer fantasy",
@@ -392,7 +394,8 @@
    "en": "L-O-L-O-L (here we go)",
    "ko": "L-O-L-O-L (자, 간다)",
    "sub": "",
-   "start": 13.421
+   "start": 13.421,
+   "big": true
   }
  ]
 }
