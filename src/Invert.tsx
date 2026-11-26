@@ -5,7 +5,7 @@ import {AbsoluteFill, Audio, staticFile, useCurrentFrame, useVideoConfig} from '
 // - 큰 단어: 항상 같은 높이(화면 높이 x bigH), 한 번에 한 단어, 단어가 바뀔 때만 색 반전
 // - 작은 문장: 노래 음절 단위로 글자가 늘어남, 박자마다 색 반전
 // - 큰 단어 -> 작은 문장으로 넘어갈 때: 글자가 ~10배로 확대된 상태에서 4프레임 안에 원래 크기로
-export type Line = {en: string; ko: string; sub?: string; start: number; big?: boolean; steps?: [number, number][]};
+export type Line = {en: string; ko: string; sub?: string; start: number; big?: boolean; steps?: [number, number][]; pieces?: {t: number; en: string; ko: string}[]};
 export type SongData = {name: string; duration: number; beats: number[]; lines: Line[]};
 export type InvertProps = {
   name: string; // public/data/<name>.json
@@ -18,6 +18,7 @@ export type InvertProps = {
   sparkle: boolean; // 하단 반짝이
   zoomIn: boolean; // 큰 단어 -> 작은 문장 전환 줌
   showKo: boolean; // 한글 해석 표시
+  pieceMode: boolean; // 한 단어(조각)씩 크게 보여주기 (lines[].pieces 필요)
   data?: SongData;
 };
 
@@ -50,13 +51,43 @@ const wordsOf = (en: string) => {
   return out;
 };
 
-export const Invert = ({data, audio, colors, glow, bigH, smallH, sparkle, zoomIn, showKo}: InvertProps) => {
+export const Invert = ({data, audio, colors, glow, bigH, smallH, sparkle, zoomIn, showKo, pieceMode}: InvertProps) => {
   const frame = useCurrentFrame();
   const {fps, durationInFrames, width, height} = useVideoConfig();
   if (!data) return null;
   const t = frame / fps + 1e-4;
   const end = durationInFrames / fps;
   const L = data.lines;
+  if (pieceMode) {
+    // 한 번에 한 조각: 조각이 바뀔 때마다 색 반전. 글자는 정중앙, 높이 고정.
+    const all = L.flatMap((l) => l.pieces || []).sort((a, b) => a.t - b.t);
+    const n = all.filter((p) => p.t <= t).length;
+    const cur = n > 0 ? all[n - 1] : null;
+    const ph = Math.max(n - 1, 0);
+    const bgc = colors[ph % 2];
+    const fgc = colors[(ph + 1) % 2];
+    const bgs = glow && lum(bgc) > 0.35 ? `radial-gradient(ellipse at center, ${mixWhite(bgc, 0.45)} 0%, ${bgc} 78%)` : bgc;
+    const word = cur ? cur.en.replace(/[,.]+$/, '').toUpperCase() : '';
+    const fs = (height * bigH) / ANTON_CAP;
+    const kk = height / 1080;
+    return (
+      <AbsoluteFill style={{background: bgs}}>
+        <style>{`@font-face{font-family:'BHS';src:url('${staticFile('bhs.woff2')}') format('woff2');}@font-face{font-family:'NSK';font-weight:400;src:url('${staticFile('nsk.woff2')}') format('woff2');}@font-face{font-family:'Anton';src:url('${staticFile('anton.woff2')}') format('woff2');}`}</style>
+        {cur && (
+          <AbsoluteFill style={{justifyContent: 'center', alignItems: 'center'}}>
+            <div style={{fontFamily: "'Anton','BHS',sans-serif", color: fgc, fontSize: fs, lineHeight: 1, letterSpacing: -fs * 0.01, whiteSpace: 'nowrap', WebkitTextStroke: `${6 * kk}px ${fgc}`}}>{word}</div>
+            {showKo && <div style={{fontFamily: "'BHS','NSK',sans-serif", color: fgc, fontSize: height * 0.105, lineHeight: 1, marginTop: height * 0.05}}>{cur.ko}</div>}
+          </AbsoluteFill>
+        )}
+        {sparkle && cur && (
+          <div style={{position: 'absolute', left: '50%', bottom: height * 0.045, transform: 'translateX(-50%)'}}>
+            <Star size={30 * kk} color={fgc} filled={ph % 2 === 0} />
+          </div>
+        )}
+        <Audio src={staticFile(audio)} />
+      </AbsoluteFill>
+    );
+  }
   const nextStart = (i: number) => (i + 1 < L.length ? L[i + 1].start : end);
 
   // 큰 단어: 각 단어가 처음 나오는 시각 (첫 글자가 노래에서 불리는 시점)

@@ -6,7 +6,7 @@ import {DURATION_SEC, FPS} from './lyrics';
 const invertDefaults: InvertProps = {
   name: 'song2', audio: 'song2.m4a', width: 1440, height: 1080,
   colors: ['#2b4dff', '#ffe14a'], glow: true,
-  bigH: 0.42, smallH: 0.072, sparkle: true, zoomIn: true, showKo: true,
+  bigH: 0.42, smallH: 0.072, sparkle: true, zoomIn: true, showKo: true, pieceMode: false,
 };
 
 export const Root = () => (
