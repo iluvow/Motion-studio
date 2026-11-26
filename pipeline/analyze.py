@@ -17,6 +17,8 @@ ap.add_argument('audio'); ap.add_argument('lyrics'); ap.add_argument('name')
 ap.add_argument('--lang', default='en')
 ap.add_argument('--model', default='small')
 ap.add_argument('--no-separate', action='store_true')
+ap.add_argument('--anchor', action='append', default=[], help='확실한 줄 시작 시각 고정: 줄번호=초 (여러 번 가능). 사이는 보간')
+ap.add_argument('--vocal-end', type=float, default=None, help='보컬이 끝나는 시각(초)')
 ap.add_argument('--bpm', type=float, default=None, help='박자 추정이 틀릴 때 BPM 직접 지정(4분음표 기준)')
 a = ap.parse_args()
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -54,14 +56,17 @@ if not a.no_separate:
         subprocess.run([sys.executable, '-m', 'demucs.separate', '-n', 'htdemucs', '--two-stems=vocals', '-d', 'cpu', '-o', out, wav], check=True)
     voc = voc_path
 
+anchors = {int(x.split('=')[0]): float(x.split('=')[1]) for x in a.anchor}
 # 5. 음성 인식 (가사를 prompt로 줘서 환각 감소)
-from faster_whisper import WhisperModel
-yv, _ = librosa.load(voc, sr=16000, mono=True)
-model = WhisperModel(a.model, device='cpu', compute_type='int8')
-prompt = ' '.join(l['en'] for l in lines)
-segs, _ = model.transcribe(yv, word_timestamps=True, language=a.lang, vad_filter=False,
-                           condition_on_previous_text=False, initial_prompt=prompt, beam_size=5)
-words = [(w.start, w.end, w.word.strip()) for s in segs for w in s.words]
+words = []
+if not anchors:
+    from faster_whisper import WhisperModel
+    yv, _ = librosa.load(voc, sr=16000, mono=True)
+    model = WhisperModel(a.model, device='cpu', compute_type='int8')
+    prompt = ' '.join(l['en'] for l in lines)
+    segs, _ = model.transcribe(yv, word_timestamps=True, language=a.lang, vad_filter=False,
+                               condition_on_previous_text=False, initial_prompt=prompt, beam_size=5)
+    words = [(w.start, w.end, w.word.strip()) for s in segs for w in s.words]
 
 # 6. 가사 정렬: 인식 단어 <-> 가사 단어 시퀀스 매칭
 norm = lambda s: re.sub(r"[^a-z0-9가-힣ぁ-んァ-ヶ一-龥]", '', s.lower())
@@ -84,7 +89,16 @@ for idx, (li, wi, _) in enumerate(lyr_tokens):
 
 # 7. 보정: 못 찾은 줄은 앞뒤 줄 사이 보간, 전체가 실패하면 마디 격자에 균등 배치
 mode = 'aligned'
-if coverage < 0.4 or sum(s is not None for s in line_start) < max(2, len(lines) // 3):
+if anchors:
+    mode = 'anchored'
+    pts = dict(anchors); pts.setdefault(len(lines), a.vocal_end or dur)
+    ks = sorted(pts)
+    line_start = []
+    for i in range(len(lines)):
+        lo = max(k for k in ks if k <= i) if any(k <= i for k in ks) else ks[0]
+        hi = min(k for k in ks if k > i)
+        line_start.append(pts[lo] + (pts[hi] - pts[lo]) * (i - lo) / (hi - lo))
+elif coverage < 0.4 or sum(s is not None for s in line_start) < max(2, len(lines) // 3):
     mode = 'bars-fallback'
     per = dur / len(lines)
     grid = [round(i * bar_len, 3) for i in range(int(dur / bar_len) + 1)]
@@ -118,7 +132,7 @@ result = {
     'lines': [dict(l, start=line_start[i]) for i, l in enumerate(lines)],
 }
 os.makedirs(os.path.join(ROOT, 'public', 'data'), exist_ok=True)
-outp = os.path.join(ROOT, 'data', a.name + '.json')
+outp = os.path.join(ROOT, 'public', 'data', a.name + '.json')
 json.dump(result, open(outp, 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
 print(f"saved {outp}\nmode={mode} coverage={coverage:.0%} bpm={tempo:.1f} bar={bar_len:.2f}s beats={len(beat_list)}")
 print('ASR:', ' '.join(w[2] for w in words)[:200])
