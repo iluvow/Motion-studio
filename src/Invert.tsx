@@ -19,6 +19,8 @@ export type InvertProps = {
   zoomIn: boolean; // 큰 단어 -> 작은 문장 전환 줌
   showKo: boolean; // 한글 해석 표시
   pieceMode: boolean; // 한 단어(조각)씩 크게 보여주기 (lines[].pieces 필요)
+  warpAmp: number; // idle 왜곡 세기(px, 1080 기준). 0이면 끔
+  warpStretch: number; // 유지되는 동안 늘어남 정도(0~1)
   data?: SongData;
 };
 
@@ -51,7 +53,7 @@ const wordsOf = (en: string) => {
   return out;
 };
 
-export const Invert = ({data, audio, colors, glow, bigH, smallH, sparkle, zoomIn, showKo, pieceMode}: InvertProps) => {
+export const Invert = ({data, audio, colors, glow, bigH, smallH, sparkle, zoomIn, showKo, pieceMode, warpAmp, warpStretch}: InvertProps) => {
   const frame = useCurrentFrame();
   const {fps, durationInFrames, width, height} = useVideoConfig();
   if (!data) return null;
@@ -75,12 +77,29 @@ export const Invert = ({data, audio, colors, glow, bigH, smallH, sparkle, zoomIn
     return (
       <AbsoluteFill style={{background: bgs}}>
         <style>{`@font-face{font-family:'BHS';src:url('${staticFile('bhs.woff2')}') format('woff2');}@font-face{font-family:'NSK';font-weight:400;src:url('${staticFile('nsk.woff2')}') format('woff2');}@font-face{font-family:'Anton';src:url('${staticFile('anton.woff2')}') format('woff2');}`}</style>
-        {cur && (
-          <AbsoluteFill style={{justifyContent: 'center', alignItems: 'center'}}>
-            <div style={{fontFamily: "'Anton','BHS',sans-serif", color: fgc, fontSize: fs, lineHeight: 1, letterSpacing: -fs * 0.01, whiteSpace: 'nowrap', WebkitTextStroke: `${6 * kk}px ${fgc}`}}>{word}</div>
-            {showKo && <div style={{fontFamily: "'BHS','NSK',sans-serif", color: fgc, fontSize: height * 0.105, lineHeight: 1, marginTop: height * 0.05}}>{cur.ko}</div>}
-          </AbsoluteFill>
-        )}
+        {cur && (() => {
+          // 레퍼런스에서 측정한 idle: 조각이 유지되는 동안 위치마다 다르게 천천히 일렁이며 늘어남
+          const since = t - cur.t;
+          const p = Math.min(since / 0.9, 1);
+          const sx = 1 + warpStretch * 0.03 * p, sy = 1 + warpStretch * 0.01 * p;
+          const bfx = 0.006 + 0.002 * Math.sin(t * 0.9), bfy = 0.012 + 0.003 * Math.cos(t * 0.7);
+          const first = since < 1 / fps + 1e-4 && (L.some((l) => l.pieces && l.pieces[0] && l.pieces[0].t === cur.t));
+          const rgb = (h: string, a: number) => { const n = parseInt(h.slice(1), 16); return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`; };
+          return (
+            <AbsoluteFill style={{justifyContent: 'center', alignItems: 'center', opacity: first ? 0.35 : 1}}>
+              <svg width="0" height="0" style={{position: 'absolute'}}>
+                <filter id="warp" x="-10%" y="-10%" width="120%" height="120%">
+                  <feTurbulence type="fractalNoise" baseFrequency={`${bfx} ${bfy}`} numOctaves={1} seed={4} result="n" />
+                  <feDisplacementMap in="SourceGraphic" in2="n" scale={warpAmp * kk} xChannelSelector="R" yChannelSelector="G" />
+                </filter>
+              </svg>
+              <div style={{filter: warpAmp > 0 ? 'url(#warp)' : undefined, transform: `scale(${sx},${sy})`, transformOrigin: '50% 100%', textAlign: 'center'}}>
+                <div style={{fontFamily: "'Anton','BHS',sans-serif", color: fgc, fontSize: fs, lineHeight: 1, letterSpacing: -fs * 0.01, whiteSpace: 'nowrap', WebkitTextStroke: `${6 * kk}px ${fgc}`, textShadow: `${4 * kk}px ${4 * kk}px 0 ${rgb(fgc, 0.28)}`}}>{word}</div>
+                {showKo && <div style={{fontFamily: "'BHS','NSK',sans-serif", color: fgc, fontSize: height * 0.105, lineHeight: 1, marginTop: height * 0.05, textShadow: `${3 * kk}px ${3 * kk}px 0 ${rgb(fgc, 0.28)}`}}>{cur.ko}</div>}
+              </div>
+            </AbsoluteFill>
+          );
+        })()}
         {sparkle && cur && (
           <div style={{position: 'absolute', left: '50%', bottom: height * 0.045, transform: 'translateX(-50%)'}}>
             <Star size={30 * kk} color={fgc} filled={ph % 2 === 0} />
