@@ -68,7 +68,9 @@ export const Invert = ({data, audio, colors, glow, bigH, smallH, sparkle, zoomIn
     const fgc = colors[(ph + 1) % 2];
     const bgs = glow && lum(bgc) > 0.35 ? `radial-gradient(ellipse at center, ${mixWhite(bgc, 0.45)} 0%, ${bgc} 78%)` : bgc;
     const word = cur ? cur.en.replace(/[,.]+$/, '').toUpperCase() : '';
-    const fs = (height * bigH) / ANTON_CAP;
+    let fs = (height * bigH) / ANTON_CAP;
+    const wide = word.length * 0.54 * fs;
+    if (wide > width * 0.9) fs *= (width * 0.9) / wide; // 긴 조각은 쪼개지 않고 크기를 줄여 폭에 맞춤
     const kk = height / 1080;
     return (
       <AbsoluteFill style={{background: bgs}}>
