@@ -32,10 +32,11 @@ props 옵션: `colors`(두 색), `glow`(밝은 색 중앙 그라데이션), `big
 
 배경 영상이 있는 스타일은 `src/Lyrics.tsx`(PC방 영상용)을 참고.
 
-## 노래를 whisper가 못 알아들을 때 (일본어 로마자 가사 등)
-보컬 분리(`.work/<이름>/sep/htdemucs/full/vocals.wav`)가 있으면 음절 수 x 박자 격자로 싱크:
-```bash
-.venv/bin/python pipeline/fit_moras.py <vocals.wav> data/<이름>_lyrics.txt <이름> --sections 12,7,6 --unit <16분음표초> --fixed-t0 <시작초> --bars 7,5,5 --mult 1,2,2
-```
-- `--unit` = 60/BPM/4 (BPM 1%만 틀려도 30초에 0.3초 어긋나니 후보 BPM을 비교해서 고르세요)
-- 시작 시각(`--fixed-t0`)은 보컬 onset 일치도 점수와 마지막 음절이 보컬 끝과 맞는지로 정함
+## 싱크 (whisper가 가사를 못 알아듣는 곡: 가공된 보컬, 일본어 등)
+1. 보컬/드럼 분리: `python -m demucs.separate -n htdemucs -d cpu -o .work/<이름>/sep4 .work/<이름>/full.wav` (vocals.wav, drums.wav)
+2. 박자 격자: 드럼 스템의 onset에 (t0, beat)를 맞춰서 구함 (분석 스니펫 참고: 8분음표 격자 위상/간격 탐색)
+3. 강제 정렬로 검증: `python pipeline/force_align.py <vocals.wav> data/<이름>_lyrics.txt <이름>` (MMS CTC 정렬. 신뢰도는 낮아도 줄 시작이 격자 위에 규칙적으로 떨어지면 구조가 맞는 것)
+4. 확정: `python pipeline/grid_sync.py <이름> --t0 .. --beat .. --first-eighth N --lens 2,2,4,...`
+   - 줄마다 차지하는 박 수(lens)로 줄 시작을 계산하고, 음절은 16분음표 간격으로 배치
+- 주의: 박자 격자는 한 박 단위로 평행이동해도 점수가 비슷해서, 첫 줄 시작은 반드시 정렬기/인식 결과(독립 증거)로 확인하세요.
+- 구버전 `fit_moras.py`는 추정 기반이라 쓰지 마세요.
